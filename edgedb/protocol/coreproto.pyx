@@ -185,8 +185,52 @@ cdef class CoreProtocol:
             self._push_result()
 
     cdef _process__bind_execute(self, char mtype):
-        buf = self.buffer.consume_message()
-        print(buf.as_bytes())
+        if mtype == b'D':
+            self._parse_data_msgs()
+
+    cdef _parse_data_msgs(self):
+        cdef:
+            ReadBuffer buf = self.buffer
+            list rows
+            decode_row_method decoder = <decode_row_method>self._decode_row
+
+            const char* cbuf
+            ssize_t cbuf_len
+            object row
+            Memory mem
+
+        if PG_DEBUG:
+            if buf.get_message_type() != b'D':
+                raise RuntimeError(
+                    '_parse_data_msgs: first message is not "D"')
+
+        if self._discard_data:
+            while True:
+                buf.consume_message()
+                if not buf.has_message() or buf.get_message_type() != b'D':
+                    self._skip_discard = True
+                    return
+
+        if PG_DEBUG:
+            if type(self.result) is not list:
+                raise RuntimeError(
+                    '_parse_data_msgs: result is not a list, but {!r}'.
+                    format(self.result))
+
+        rows = self.result
+        while True:
+            cbuf = buf.try_consume_message(&cbuf_len)
+            if cbuf != NULL:
+                row = decoder(self, cbuf, cbuf_len)
+            else:
+                mem = buf.consume_message()
+                row = decoder(self, mem.buf, mem.length)
+
+            cpython.PyList_Append(rows, row)
+
+            if not buf.has_message() or buf.get_message_type() != b'D':
+                self._skip_discard = True
+                return
 
     cdef _parse_msg_command_complete(self):
         cdef:
@@ -383,6 +427,7 @@ cdef class CoreProtocol:
 
         self._ensure_connected()
         self._set_state(PROTOCOL_BIND_EXECUTE)
+        self.result = []
 
         packet = WriteBuffer.new()
 
@@ -415,6 +460,9 @@ cdef class CoreProtocol:
         pass
 
     cdef _on_connection_lost(self, exc):
+        pass
+
+    cdef _decode_row(self, const char* buf, ssize_t buf_len):
         pass
 
     # asyncio callbacks:

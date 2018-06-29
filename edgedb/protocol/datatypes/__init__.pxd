@@ -17,20 +17,15 @@
 #
 
 
-cdef class PreparedStatementState:
-    cdef:
-        readonly str name
-        readonly str query
-        readonly bint closed
-        readonly bytes args_desc
-        readonly bytes row_desc
+cimport cpython
 
-        FastReadBuffer buffer
 
-        CodecsRegistry _c
-        Codec _dec
+cdef extern from "datatypes/datatypes.h":
 
-    cdef _set_args_desc(self, bytes data)
-    cdef _set_row_desc(self, bytes data)
+	cpython.PyTypeObject *ApgRecord_InitTypes() except NULL
 
-    cdef _decode_row(self, const char* cbuf, ssize_t buf_len)
+	int ApgRecord_CheckExact(object)
+	object ApgRecord_New(object, int)
+	void ApgRecord_SET_ITEM(object, int, object)
+
+	object ApgRecordDesc_New(object, object)

@@ -20,6 +20,7 @@
 # cython: language_level=3
 
 include "./pgbase/pgbase.pxd"
+include "./codecs/codecs.pxd"
 
 include "coreproto.pxd"
 include "prepared_stmt.pxd"

@@ -24,8 +24,10 @@ import asyncio
 import collections
 import time
 
+from . cimport datatypes
 
 include "./pgbase/pgbase.pyx"
+include "./codecs/codecs.pyx"
 
 include "coreproto.pyx"
 include "prepared_stmt.pyx"
@@ -129,6 +131,7 @@ cdef class BaseProtocol(CoreProtocol):
         bind_args = bytes(buf)
 
         waiter = self._new_waiter(None)
+        self.statement = statement
         self._bind_execute(statement, bind_args)
         return await waiter
 
@@ -287,7 +290,6 @@ cdef class BaseProtocol(CoreProtocol):
     cdef _on_result__connect(self, object waiter):
         waiter.set_result(True)
 
-
     cdef _dispatch_result(self):
         waiter = self.waiter
         self.waiter = None
@@ -325,6 +327,14 @@ cdef class BaseProtocol(CoreProtocol):
 
         except Exception as exc:
             waiter.set_exception(exc)
+
+    cdef _decode_row(self, const char* buf, ssize_t buf_len):
+        if PG_DEBUG:
+            if self.statement is None:
+                raise RuntimeError(
+                    '_decode_row: statement is None')
+
+        return self.statement._decode_row(buf, buf_len)
 
     cdef _on_result(self):
         if self.timeout_handle is not None:

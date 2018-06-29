@@ -90,6 +90,7 @@ cdef class CoreProtocol:
     cdef _process__prepare(self, char mtype)
     cdef _process__bind_execute(self, char mtype)
 
+    cdef _parse_data_msgs(self)
     cdef _parse_msg_authentication(self)
     cdef _parse_msg_parameter_status(self)
     cdef _parse_msg_notification(self)
@@ -120,3 +121,5 @@ cdef class CoreProtocol:
     cdef _on_notice(self, parsed)
     cdef _set_server_parameter(self, name, val)
     cdef _on_connection_lost(self, exc)
+
+    cdef _decode_row(self, const char* buf, ssize_t buf_len)

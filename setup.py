@@ -80,11 +80,11 @@ class build_ext(distutils_build_ext.build_ext):
 
         super(build_ext, self).initialize_options()
 
-        if os.environ.get('ASYNCPG_DEBUG'):
+        if os.environ.get('EDGEDB_DEBUG'):
             self.cython_always = True
             self.cython_annotate = True
             self.cython_directives = "linetrace=True"
-            self.define = 'ASYNCPG_DEBUG,CYTHON_TRACE,CYTHON_TRACE_NOGIL'
+            self.define = 'PG_DEBUG,CYTHON_TRACE,CYTHON_TRACE_NOGIL'
             self.debug = True
         else:
             self.cython_always = False
@@ -173,7 +173,8 @@ setuptools.setup(
     ext_modules=[
         distutils_extension.Extension(
             "edgedb.protocol.protocol",
-            ["edgedb/protocol/protocol.pyx"],
+            ["edgedb/protocol/datatypes/datatypes.c",
+             "edgedb/protocol/protocol.pyx"],
             extra_compile_args=CFLAGS,
             extra_link_args=LDFLAGS)
     ],
