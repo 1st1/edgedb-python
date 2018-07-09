@@ -173,7 +173,11 @@ setuptools.setup(
     ext_modules=[
         distutils_extension.Extension(
             "edgedb.protocol.protocol",
-            ["edgedb/protocol/datatypes/datatypes.c",
+            ["edgedb/protocol/datatypes/args.c",
+             "edgedb/protocol/datatypes/record_desc.c",
+             "edgedb/protocol/datatypes/base.c",
+             "edgedb/protocol/datatypes/tuple.c",
+             "edgedb/protocol/datatypes/namedtuple.c",
              "edgedb/protocol/protocol.pyx"],
             extra_compile_args=CFLAGS,
             extra_link_args=LDFLAGS)

@@ -22,10 +22,8 @@ cimport cpython
 
 cdef extern from "datatypes/datatypes.h":
 
-	cpython.PyTypeObject *ApgRecord_InitTypes() except NULL
+    object EdgeRecordDesc_InitType()
+    object EdgeRecordDesc_New(object)
 
-	int ApgRecord_CheckExact(object)
-	object ApgRecord_New(object, int)
-	void ApgRecord_SET_ITEM(object, int, object)
-
-	object ApgRecordDesc_New(object, object)
+    object EdgeTuple_InitType()
+    object EdgeNamedTuple_InitType()

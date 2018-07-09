@@ -386,3 +386,8 @@ cdef class BaseProtocol(CoreProtocol):
 
 class Protocol(BaseProtocol, asyncio.Protocol):
     pass
+
+
+RecordDescriptor = datatypes.EdgeRecordDesc_InitType()
+Tuple = datatypes.EdgeTuple_InitType()
+NamedTuple = datatypes.EdgeNamedTuple_InitType()
