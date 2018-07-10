@@ -101,7 +101,6 @@ PyTypeObject EdgeRecordDesc_Type = {
     .tp_getattro = PyObject_GenericGetAttr,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_traverse = (traverseproc)record_desc_traverse,
-    .tp_iter = PyObject_SelfIter,
     .tp_new = record_desc_tp_new,
     .tp_methods = record_desc_methods,
 };

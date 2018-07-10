@@ -178,6 +178,8 @@ setuptools.setup(
              "edgedb/protocol/datatypes/tuple.c",
              "edgedb/protocol/datatypes/namedtuple.c",
              "edgedb/protocol/datatypes/object.c",
+             "edgedb/protocol/datatypes/set.c",
+             "edgedb/protocol/datatypes/hash.c",
              "edgedb/protocol/protocol.pyx"],
             extra_compile_args=CFLAGS,
             extra_link_args=LDFLAGS)

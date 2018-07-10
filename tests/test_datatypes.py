@@ -94,6 +94,14 @@ class TestNamedTuple(unittest.TestCase):
         t.b.append(t)
         self.assertEqual(t.b, [t])
 
+    def test_namedtuple_4(self):
+        t1 = edgedb.NamedTuple(a=1, b='aaaa')
+        t2 = edgedb.Tuple((1, 'aaaa'))
+        t3 = (1, 'aaaa')
+
+        self.assertEqual(hash(t1), hash(t2))
+        self.assertEqual(hash(t1), hash(t3))
+
 
 class TestObject(unittest.TestCase):
 
@@ -115,3 +123,36 @@ class TestObject(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             o[0]
+
+    def test_object_2(self):
+        f = create_object_factory(('a', 'lb', 'c'), frozenset(['lb']))
+        o = f(1, 2, 3)
+
+        self.assertEqual(hash(o), hash(f(1, 2, 3)))
+        self.assertNotEqual(hash(o), hash(f(1, 2, 'aaaa')))
+        self.assertNotEqual(hash(o), hash((1, 2, 3)))
+
+
+class TestSet(unittest.TestCase):
+
+    def test_set_1(self):
+        s = edgedb.Set((1, 2, 3000, 'a'))
+
+        self.assertEqual(s[1], 2)
+        self.assertEqual(len(s), 4)
+        with self.assertRaises(IndexError):
+            s[10]
+
+        with self.assertRaises(TypeError):
+            s[0] = 1
+
+    def test_set_2(self):
+        s = edgedb.Set((1, 2, 3000, 'a'))
+
+        self.assertEqual(
+            hash(s),
+            hash(edgedb.Set((1, 2, sum([1000, 2000]), 'a'))))
+
+        self.assertNotEqual(
+            hash(s),
+            hash((1, 2, 3000, 'a')))

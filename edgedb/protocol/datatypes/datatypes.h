@@ -45,7 +45,6 @@ typedef struct {
 
 PyObject * EdgeTuple_InitType(void);
 EdgeTupleObject * EdgeTuple_New(Py_ssize_t size);
-Py_hash_t EdgeTupleLike_Hash(PyObject **, Py_ssize_t);
 
 
 /* === edgedb.NamedTuple ==================================== */
@@ -79,6 +78,7 @@ extern PyTypeObject EdgeObject_Type;
 typedef struct {
     PyObject_VAR_HEAD
     EdgeRecordDescObject *desc;
+    Py_hash_t cached_hash;
     PyObject *ob_item[1];
 } EdgeObject;
 
@@ -87,7 +87,30 @@ EdgeObject * EdgeObject_New(EdgeRecordDescObject *);
 int EdgeObject_SetItem(EdgeObject *, Py_ssize_t, PyObject *);
 
 
+/* === edgedb.Set =========================================== */
+
+extern PyTypeObject EdgeSet_Type;
+
+#define EdgeSet_Check(d) (Py_TYPE(d) == &EdgeSet_Type)
+
+typedef struct {
+    PyObject_HEAD
+    Py_hash_t cached_hash;
+    PyObject *els;
+} EdgeSetObject;
+
+PyObject * EdgeSet_InitType(void);
+EdgeSetObject * EdgeSet_New(Py_ssize_t);
+int EdgeSet_SetItem(EdgeSetObject *, Py_ssize_t, PyObject *);
+
+
+
 /* === helpers ============================================== */
 int Edge_NoKeywords(const char *, PyObject *);
+
+Py_hash_t EdgeGeneric_Hash(PyObject **, Py_ssize_t);
+Py_hash_t EdgeGeneric_HashWithBase(Py_hash_t, PyObject **, Py_ssize_t);
+Py_hash_t EdgeGeneric_HashString(const char *);
+
 
 #endif

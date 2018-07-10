@@ -41,7 +41,7 @@ tuple_dealloc(EdgeTupleObject *o)
 static Py_hash_t
 tuple_hash(EdgeTupleObject *o)
 {
-    return EdgeTupleLike_Hash(o->ob_item, Py_SIZE(o));
+    return EdgeGeneric_Hash(o->ob_item, Py_SIZE(o));
 }
 
 
@@ -150,31 +150,4 @@ EdgeTuple_InitType(void)
     }
 
     return (PyObject *)&EdgeTuple_Type;
-}
-
-
-Py_hash_t
-EdgeTupleLike_Hash(PyObject **els, Py_ssize_t len)
-{
-    Py_uhash_t x;  /* Unsigned for defined overflow behavior. */
-    PyObject **p = els;
-    Py_hash_t y;
-    Py_uhash_t mult;
-
-    mult = _PyHASH_MULTIPLIER;
-    x = 0x345678UL;
-    while (--len >= 0) {
-        y = PyObject_Hash(*p++);
-        if (y == -1) {
-            return -1;
-        }
-        x = (x ^ (Py_uhash_t)y) * mult;
-        /* the cast might truncate len; that doesn't change hash stability */
-        mult += (Py_uhash_t)(82520UL + (size_t)len + (size_t)len);
-    }
-    x += 97531UL;
-    if (x == (Py_uhash_t)-1) {
-        x = (Py_uhash_t)-2;
-    }
-    return (Py_hash_t)x;
 }

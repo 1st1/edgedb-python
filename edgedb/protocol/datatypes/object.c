@@ -2,6 +2,10 @@
 #include "freelist.h"
 
 
+static int init_type_called = 0;
+static Py_hash_t base_hash = -1;
+
+
 EDGE_SETUP_FREELIST(
     EDGE_OBJECT,
     EdgeObject,
@@ -18,6 +22,8 @@ EDGE_SETUP_FREELIST(
 EdgeObject *
 EdgeObject_New(EdgeRecordDescObject *desc)
 {
+    assert(init_type_called);
+
     if (desc == NULL || !EdgeRecordDesc_Check(desc)) {
         PyErr_BadInternalCall();
         return NULL;
@@ -33,6 +39,8 @@ EdgeObject_New(EdgeRecordDescObject *desc)
 
     Py_INCREF(desc);
     o->desc = desc;
+
+    o->cached_hash = -1;
 
     PyObject_GC_Track(o);
     return o;
@@ -56,6 +64,7 @@ object_dealloc(EdgeObject *o)
 {
     PyObject_GC_UnTrack(o);
     Py_CLEAR(o->desc);
+    o->cached_hash = -1;
     EDGE_DEALLOC_WITH_FREELIST(EDGE_OBJECT, EdgeObject, o);
 }
 
@@ -72,6 +81,17 @@ object_traverse(EdgeObject *o, visitproc visit, void *arg)
         }
     }
     return 0;
+}
+
+
+static Py_hash_t
+object_hash(EdgeObject *o)
+{
+    if (o->cached_hash == -1) {
+        o->cached_hash = EdgeGeneric_HashWithBase(
+            base_hash, o->ob_item, Py_SIZE(o));
+    }
+    return o->cached_hash;
 }
 
 
@@ -107,8 +127,7 @@ PyTypeObject EdgeObject_Type = {
     .tp_basicsize = sizeof(EdgeObject) - sizeof(PyObject *),
     .tp_itemsize = sizeof(PyObject *),
     .tp_dealloc = (destructor)object_dealloc,
-    // .tp_as_sequence = &_as_sequence,
-    // .tp_hash = (hashfunc)namedtuple_hash,
+    .tp_hash = (hashfunc)object_hash,
     .tp_getattro = (getattrofunc)object_getattr,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_traverse = (traverseproc)object_traverse,
@@ -123,5 +142,11 @@ EdgeObject_InitType(void)
         return NULL;
     }
 
+    base_hash = EdgeGeneric_HashString("edgedb.Object");
+    if (base_hash == -1) {
+        return NULL;
+    }
+
+    init_type_called = 1;
     return (PyObject *)&EdgeObject_Type;
 }

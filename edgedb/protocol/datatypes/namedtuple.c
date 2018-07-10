@@ -51,7 +51,7 @@ namedtuple_dealloc(EdgeNamedTupleObject *o)
 static Py_hash_t
 namedtuple_hash(EdgeNamedTupleObject *v)
 {
-    return EdgeTupleLike_Hash(v->ob_item, Py_SIZE(v));
+    return EdgeGeneric_Hash(v->ob_item, Py_SIZE(v));
 }
 
 
