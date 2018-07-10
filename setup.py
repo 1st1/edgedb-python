@@ -175,7 +175,6 @@ setuptools.setup(
             "edgedb.protocol.protocol",
             ["edgedb/protocol/datatypes/args.c",
              "edgedb/protocol/datatypes/record_desc.c",
-             "edgedb/protocol/datatypes/base.c",
              "edgedb/protocol/datatypes/tuple.c",
              "edgedb/protocol/datatypes/namedtuple.c",
              "edgedb/protocol/protocol.pyx"],

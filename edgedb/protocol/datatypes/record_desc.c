@@ -43,15 +43,22 @@ static PyObject *
 record_desc_is_linkprop(EdgeRecordDescObject *o, PyObject *arg)
 {
     Py_ssize_t pos;
-    int ret = EdgeRecordDesc_Lookup(o, arg, &pos);
-    if (ret < 0) {
+    edge_attr_lookup_t ret = EdgeRecordDesc_Lookup(o, arg, &pos);
+    if (ret == L_ERROR) {
         return NULL;
     }
-    if (ret == 2) {
+    else if (ret == L_NOT_FOUND) {
+        PyErr_SetObject(PyExc_LookupError, arg);
+        return NULL;
+    }
+    else if (ret == L_LINKPROP) {
         Py_RETURN_TRUE;
     }
-    else {
+    else if (ret == L_ATTR) {
         Py_RETURN_FALSE;
+    }
+    else {
+        abort();
     }
 }
 
@@ -59,9 +66,22 @@ record_desc_is_linkprop(EdgeRecordDescObject *o, PyObject *arg)
 static PyObject *
 record_desc_get_pos(EdgeRecordDescObject *o, PyObject *arg) {
     Py_ssize_t pos;
-    int ret = EdgeRecordDesc_Lookup(o, arg, &pos);
-    if (ret < 0) {
+    edge_attr_lookup_t ret = EdgeRecordDesc_Lookup(o, arg, &pos);
+    if (ret == L_ERROR) {
         return NULL;
+    }
+    else if (ret == L_NOT_FOUND) {
+        PyErr_SetObject(PyExc_LookupError, arg);
+        return NULL;
+    }
+    else if (ret == L_LINKPROP) {
+        PyLong_FromLong((long)pos);
+    }
+    else if (ret == L_ATTR) {
+        PyLong_FromLong((long)pos);
+    }
+    else {
+        abort();
     }
     return PyLong_FromLong((long)pos);
 }
@@ -169,17 +189,16 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
 }
 
 
-int
+edge_attr_lookup_t
 EdgeRecordDesc_Lookup(EdgeRecordDescObject *d, PyObject *key, Py_ssize_t *pos)
 {
     PyObject *res = PyDict_GetItem(d->index, key);  /* borrowed */
     if (res == NULL) {
         if (PyErr_Occurred()) {
-            return -1;
+            return L_ERROR;
         }
         else {
-            PyErr_SetObject(PyExc_LookupError, key);
-            return -1;
+            return L_NOT_FOUND;
         }
     }
 
@@ -187,16 +206,16 @@ EdgeRecordDesc_Lookup(EdgeRecordDescObject *d, PyObject *key, Py_ssize_t *pos)
     long res_long = PyLong_AsLong(res);
     if (res_long < 0) {
         assert(PyErr_Occurred());
-        return -1;
+        return L_ERROR;
     }
 
     if (res_long & EDGE_RECORD_LINK_PROP_BIT) {
         *pos = res_long & EDGE_MAX_TUPLE_SIZE;
-        return 2;
+        return L_LINKPROP;
     }
     else {
         *pos = res_long;
-        return 1;
+        return L_ATTR;
     }
 }
 

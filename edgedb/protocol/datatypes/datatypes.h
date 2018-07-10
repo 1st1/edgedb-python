@@ -7,12 +7,12 @@
 #define EDGE_MAX_TUPLE_SIZE (0x4000 - 1)
 #define EDGE_RECORD_LINK_PROP_BIT  (1 << 15)
 
-/* Maximum number of records of each size to save */
-#define EDGE_BASE_OBJECT_MAXFREELIST 2000
 
-/* Largest record to save on free list */
-#define EDGE_BASE_OBJECT_MAXSAVESIZE 20
+/* === edgedb.RecordDesc ==================================== */
 
+extern PyTypeObject EdgeRecordDesc_Type;
+
+#define EdgeRecordDesc_Check(d) (Py_TYPE(d) == &EdgeRecordDesc_Type)
 
 typedef struct {
     PyObject_HEAD
@@ -21,39 +21,46 @@ typedef struct {
     Py_ssize_t size;
 } EdgeRecordDescObject;
 
+typedef enum {L_ERROR, L_NOT_FOUND, L_LINKPROP, L_ATTR} edge_attr_lookup_t;
+
+PyObject * EdgeRecordDesc_InitType(void);
+EdgeRecordDescObject * EdgeRecordDesc_New(PyObject *, PyObject *);
+edge_attr_lookup_t EdgeRecordDesc_Lookup(
+    EdgeRecordDescObject *, PyObject *, Py_ssize_t *);
+
+
+/* === edgedb.Tuple ========================================= */
+
+#define EDGE_TUPLE_FREELIST_SIZE 2000
+#define EDGE_TUPLE_FREELIST_MAXSAVE 20
+
+extern PyTypeObject EdgeTuple_Type;
 
 typedef struct {
     PyObject_VAR_HEAD
     PyObject *ob_item[1];
-} EdgeBaseObject;
+} EdgeTupleObject;
+
+PyObject * EdgeTuple_InitType(void);
+EdgeTupleObject * EdgeTuple_New(Py_ssize_t size);
+Py_hash_t EdgeTupleLike_Hash(PyObject **, Py_ssize_t);
 
 
-#define EdgeBase_GET_ITEM(op, i) (((EdgeBaseObject *)(op))->ob_item[i])
-#define EdgeBase_SET_ITEM(op, i, v) (((EdgeBaseObject *)(op))->ob_item[i] = v)
+/* === edgedb.NamedTuple ==================================== */
 
+#define EDGE_NAMEDTUPLE_FREELIST_SIZE 2000
+#define EDGE_NAMEDTUPLE_FREELIST_MAXSAVE 20
 
-extern PyTypeObject EdgeRecordDesc_Type;
-extern PyTypeObject EdgeTuple_Type;
 extern PyTypeObject EdgeNamedTuple_Type;
 
+typedef struct {
+    PyObject_VAR_HEAD
+    EdgeRecordDescObject *desc;
+    PyObject *ob_item[1];
+} EdgeNamedTupleObject;
 
-PyObject * EdgeRecordDesc_InitType(void);
-EdgeRecordDescObject * EdgeRecordDesc_New(PyObject *, PyObject *);
-int EdgeRecordDesc_Lookup(EdgeRecordDescObject *, PyObject *, Py_ssize_t *);
-
-EdgeBaseObject * EdgeBaseObject_New(PyTypeObject *, Py_ssize_t);
-void EdgeBaseObject_Dealloc(EdgeBaseObject *);
-int EdgeBaseObject_Traverse(EdgeBaseObject *, visitproc, void *);
-Py_hash_t EdgeBaseObject_Hash(EdgeBaseObject *, Py_ssize_t);
-
-
-/* edgedb.Tuple */
-PyObject * EdgeTuple_InitType(void);
-
-
-/* edgedb.NamedTuple */
 PyObject * EdgeNamedTuple_InitType(void);
-EdgeBaseObject * EdgeNamedTuple_New(EdgeRecordDescObject *);
+EdgeNamedTupleObject * EdgeNamedTuple_New(EdgeRecordDescObject *);
 
 
 /* helpers */

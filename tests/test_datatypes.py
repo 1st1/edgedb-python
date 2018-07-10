@@ -77,3 +77,9 @@ class TestNamedTuple(unittest.TestCase):
 
         self.assertEqual(len(t), 2)
         self.assertEqual(hash(t), hash((1, 'a')))
+
+        self.assertEqual(t.a, 1)
+        self.assertEqual(t.b, 'a')
+
+        with self.assertRaises(AttributeError):
+            t.z
