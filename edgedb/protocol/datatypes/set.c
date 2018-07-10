@@ -33,6 +33,7 @@ EdgeSet_New(Py_ssize_t size)
 int
 EdgeSet_SetItem(EdgeSetObject *o, Py_ssize_t pos, PyObject *el)
 {
+    assert(EdgeSet_Check(o));
     return PyList_SetItem(o->els, pos, el);
 }
 

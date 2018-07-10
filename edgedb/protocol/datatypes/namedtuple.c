@@ -30,12 +30,25 @@ EdgeNamedTuple_New(EdgeRecordDescObject *desc)
                            &EdgeNamedTuple_Type, nt, size);
     assert(nt != NULL);
     assert(EdgeNamedTuple_Check(nt));
+    assert(Py_SIZE(nt) == size);
 
     Py_INCREF(desc);
     nt->desc = desc;
 
     PyObject_GC_Track(nt);
     return nt;
+}
+
+
+int
+EdgeNamedTuple_SetItem(EdgeNamedTupleObject *o, Py_ssize_t i, PyObject *el)
+{
+    assert(EdgeNamedTuple_Check(o));
+    assert(i >= 0);
+    assert(i < Py_SIZE(o));
+    Py_INCREF(el);
+    EdgeNamedTuple_SET_ITEM(o, i, el);
+    return 0;
 }
 
 

@@ -1,7 +1,8 @@
 import asyncio
 import collections
 
-from edgedb.protocol.protocol import Tuple, NamedTuple, Set, Object  # NoQA
+from edgedb.protocol.protocol import Tuple, NamedTuple  # NoQA
+from edgedb.protocol.protocol import Set, Object, Array  # NoQA
 from edgedb.protocol.protocol import Protocol
 
 

@@ -24,9 +24,22 @@ EdgeTuple_New(Py_ssize_t size)
                            &EdgeTuple_Type, obj, size)
     assert(obj != NULL);
     assert(EdgeTuple_Check(obj));
+    assert(Py_SIZE(obj) == size);
 
     PyObject_GC_Track(obj);
     return obj;
+}
+
+
+int
+EdgeTuple_SetItem(EdgeTupleObject *o, Py_ssize_t i, PyObject *el)
+{
+    assert(EdgeTuple_Check(o));
+    assert(i >= 0);
+    assert(i < Py_SIZE(o));
+    Py_INCREF(el);
+    EdgeTuple_SET_ITEM(o, i, el);
+    return 0;
 }
 
 
@@ -68,8 +81,8 @@ tuple_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    if (!Edge_NoKeywords("edgedb.tuple", kwargs) ||
-            !PyArg_UnpackTuple(args, "edgedb.tuple", 0, 1, &iterable))
+    if (!Edge_NoKeywords("edgedb.Tuple", kwargs) ||
+            !PyArg_UnpackTuple(args, "edgedb.Tuple", 0, 1, &iterable))
     {
         return NULL;
     }

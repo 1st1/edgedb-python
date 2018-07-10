@@ -31,7 +31,7 @@ edge_attr_lookup_t EdgeRecordDesc_Lookup(
 
 /* === edgedb.Tuple ========================================= */
 
-#define EDGE_TUPLE_FREELIST_SIZE 2000
+#define EDGE_TUPLE_FREELIST_SIZE 500
 #define EDGE_TUPLE_FREELIST_MAXSAVE 20
 
 extern PyTypeObject EdgeTuple_Type;
@@ -45,11 +45,13 @@ typedef struct {
 
 PyObject * EdgeTuple_InitType(void);
 EdgeTupleObject * EdgeTuple_New(Py_ssize_t size);
+int EdgeTuple_SetItem(EdgeTupleObject *, Py_ssize_t, PyObject *);
+
 
 
 /* === edgedb.NamedTuple ==================================== */
 
-#define EDGE_NAMEDTUPLE_FREELIST_SIZE 2000
+#define EDGE_NAMEDTUPLE_FREELIST_SIZE 500
 #define EDGE_NAMEDTUPLE_FREELIST_MAXSAVE 20
 
 extern PyTypeObject EdgeNamedTuple_Type;
@@ -64,6 +66,7 @@ typedef struct {
 
 PyObject * EdgeNamedTuple_InitType(void);
 EdgeNamedTupleObject * EdgeNamedTuple_New(EdgeRecordDescObject *);
+int EdgeNamedTuple_SetItem(EdgeNamedTupleObject *, Py_ssize_t, PyObject *);
 
 
 /* === edgedb.Object ======================================== */
@@ -103,6 +106,25 @@ PyObject * EdgeSet_InitType(void);
 EdgeSetObject * EdgeSet_New(Py_ssize_t);
 int EdgeSet_SetItem(EdgeSetObject *, Py_ssize_t, PyObject *);
 
+
+/* === edgedb.Array ========================================= */
+
+#define EDGE_ARRAY_FREELIST_SIZE 500
+#define EDGE_ARRAY_FREELIST_MAXSAVE 10
+
+extern PyTypeObject EdgeArray_Type;
+
+#define EdgeArray_Check(d) (Py_TYPE(d) == &EdgeArray_Type)
+
+typedef struct {
+    PyObject_VAR_HEAD
+    Py_hash_t cached_hash;
+    PyObject *ob_item[1];
+} EdgeArrayObject;
+
+PyObject * EdgeArray_InitType(void);
+EdgeArrayObject * EdgeArray_New(Py_ssize_t size);
+int EdgeArray_SetItem(EdgeArrayObject *, Py_ssize_t, PyObject *);
 
 
 /* === helpers ============================================== */

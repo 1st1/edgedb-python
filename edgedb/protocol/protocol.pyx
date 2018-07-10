@@ -393,6 +393,7 @@ Tuple = datatypes.EdgeTuple_InitType()
 NamedTuple = datatypes.EdgeNamedTuple_InitType()
 Object = datatypes.EdgeObject_InitType()
 Set = datatypes.EdgeSet_InitType()
+Array = datatypes.EdgeArray_InitType()
 
 
 def create_object_factory(tuple pointers, frozenset linkprops):

@@ -35,6 +35,7 @@ EdgeObject_New(EdgeRecordDescObject *desc)
     EDGE_NEW_WITH_FREELIST(EDGE_OBJECT, EdgeObject,
                            &EdgeObject_Type, o, size);
     assert(o != NULL);
+    assert(Py_SIZE(o) == size);
     assert(EdgeObject_Check(o));
 
     Py_INCREF(desc);
@@ -52,7 +53,7 @@ EdgeObject_SetItem(EdgeObject *o, Py_ssize_t i, PyObject *el)
 {
     assert(EdgeObject_Check(o));
     assert(i >= 0);
-    assert(i < o->desc->size);
+    assert(i < Py_SIZE(o));
     Py_INCREF(el);
     EdgeObject_SET_ITEM(o, i, el);
     return 0;
