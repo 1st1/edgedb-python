@@ -60,6 +60,11 @@ class TestTuple(unittest.TestCase):
         with self.assertRaisesRegex(IndexError, 'out of range'):
             t[2]
 
+    def test_tuple_3(self):
+        t = edgedb.Tuple((1, []))
+        t[1].append(t)
+        self.assertEqual(t[1], [t])
+
 
 class TestNamedTuple(unittest.TestCase):
 
@@ -83,3 +88,8 @@ class TestNamedTuple(unittest.TestCase):
 
         with self.assertRaises(AttributeError):
             t.z
+
+    def test_namedtuple_3(self):
+        t = edgedb.NamedTuple(a=1, b=[])
+        t.b.append(t)
+        self.assertEqual(t.b, [t])

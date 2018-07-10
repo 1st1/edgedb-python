@@ -182,4 +182,5 @@ setuptools.setup(
             extra_link_args=LDFLAGS)
     ],
     cmdclass={'build_ext': build_ext},
+    test_suite='tests.suite',
 )

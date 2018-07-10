@@ -44,21 +44,22 @@ record_desc_is_linkprop(EdgeRecordDescObject *o, PyObject *arg)
 {
     Py_ssize_t pos;
     edge_attr_lookup_t ret = EdgeRecordDesc_Lookup(o, arg, &pos);
-    if (ret == L_ERROR) {
-        return NULL;
-    }
-    else if (ret == L_NOT_FOUND) {
-        PyErr_SetObject(PyExc_LookupError, arg);
-        return NULL;
-    }
-    else if (ret == L_LINKPROP) {
-        Py_RETURN_TRUE;
-    }
-    else if (ret == L_ATTR) {
-        Py_RETURN_FALSE;
-    }
-    else {
-        abort();
+    switch (ret) {
+        case L_ERROR:
+            return NULL;
+
+        case L_NOT_FOUND:
+            PyErr_SetObject(PyExc_LookupError, arg);
+            return NULL;
+
+        case L_LINKPROP:
+            Py_RETURN_TRUE;
+
+        case L_ATTR:
+            Py_RETURN_FALSE;
+
+        default:
+            abort();
     }
 }
 
@@ -67,23 +68,21 @@ static PyObject *
 record_desc_get_pos(EdgeRecordDescObject *o, PyObject *arg) {
     Py_ssize_t pos;
     edge_attr_lookup_t ret = EdgeRecordDesc_Lookup(o, arg, &pos);
-    if (ret == L_ERROR) {
-        return NULL;
+    switch (ret) {
+        case L_ERROR:
+            return NULL;
+
+        case L_NOT_FOUND:
+            PyErr_SetObject(PyExc_LookupError, arg);
+            return NULL;
+
+        case L_LINKPROP:
+        case L_ATTR:
+            return PyLong_FromLong((long)pos);
+
+        default:
+            abort();
     }
-    else if (ret == L_NOT_FOUND) {
-        PyErr_SetObject(PyExc_LookupError, arg);
-        return NULL;
-    }
-    else if (ret == L_LINKPROP) {
-        PyLong_FromLong((long)pos);
-    }
-    else if (ret == L_ATTR) {
-        PyLong_FromLong((long)pos);
-    }
-    else {
-        abort();
-    }
-    return PyLong_FromLong((long)pos);
 }
 
 
@@ -176,7 +175,6 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
         return NULL;
     }
 
-    Py_INCREF(index);
     o->index = index;
 
     Py_INCREF(keys);

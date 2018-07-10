@@ -169,25 +169,27 @@ namedtuple_getattr(EdgeNamedTupleObject *o, PyObject *name)
 {
     Py_ssize_t pos;
     edge_attr_lookup_t ret = EdgeRecordDesc_Lookup(o->desc, name, &pos);
-    if (ret == L_ERROR) {
-        return NULL;
-    }
-    else if (ret == L_NOT_FOUND) {
-        PyErr_SetObject(PyExc_AttributeError, name);
-        return NULL;
-    }
-    else if (ret == L_LINKPROP) {
-        /* shouldn't be possible for namedtuples */
-        PyErr_BadInternalCall();
-        return NULL;
-    }
-    else if (ret == L_ATTR) {
-        PyObject *val = EdgeNamedTuple_GET_ITEM(o, pos);
-        Py_INCREF(val);
-        return val;
-    }
-    else {
-        abort();
+    switch (ret) {
+        case L_ERROR:
+            return NULL;
+
+        case L_NOT_FOUND:
+            PyErr_SetObject(PyExc_AttributeError, name);
+            return NULL;
+
+        case L_LINKPROP:
+            /* shouldn't be possible for namedtuples */
+            PyErr_BadInternalCall();
+            return NULL;
+
+        case L_ATTR: {
+            PyObject *val = EdgeNamedTuple_GET_ITEM(o, pos);
+            Py_INCREF(val);
+            return val;
+        }
+
+        default:
+            abort();
     }
 }
 
