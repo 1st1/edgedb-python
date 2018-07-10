@@ -23,3 +23,5 @@ docs/_build
 /.coverage*
 !/.coveragerc
 /.vscode
+/.pytest_cache
+/reflog.txt
