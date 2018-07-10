@@ -180,6 +180,7 @@ setuptools.setup(
              "edgedb/protocol/datatypes/object.c",
              "edgedb/protocol/datatypes/set.c",
              "edgedb/protocol/datatypes/hash.c",
+             "edgedb/protocol/datatypes/array.c",
              "edgedb/protocol/protocol.pyx"],
             extra_compile_args=CFLAGS,
             extra_link_args=LDFLAGS)

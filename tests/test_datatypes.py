@@ -65,6 +65,13 @@ class TestTuple(unittest.TestCase):
         t[1].append(t)
         self.assertEqual(t[1], [t])
 
+    def test_tuple_freelist_1(self):
+        l = []
+        for i in range(5000):
+            l.append(edgedb.Tuple((1,)))
+        for t in l:
+            self.assertEqual(t[0], 1)
+
 
 class TestNamedTuple(unittest.TestCase):
 
@@ -163,3 +170,29 @@ class TestSet(unittest.TestCase):
         self.assertEqual(len(s), 0)
         self.assertEqual(hash(s), hash(edgedb.Set(())))
         self.assertNotEqual(hash(s), hash(()))
+
+
+class TestArray(unittest.TestCase):
+
+    def test_array_empty_1(self):
+        t = edgedb.Array()
+        self.assertEqual(len(t), 0)
+        self.assertNotEqual(hash(t), hash(()))
+        with self.assertRaisesRegex(IndexError, 'out of range'):
+            t[0]
+
+    def test_array_2(self):
+        t = edgedb.Array((1, 'a'))
+        self.assertEqual(len(t), 2)
+        self.assertEqual(hash(t), hash(edgedb.Array([1, 'a'])))
+        self.assertNotEqual(hash(t), hash(edgedb.Array([10, 'ab'])))
+
+        self.assertEqual(t[0], 1)
+        self.assertEqual(t[1], 'a')
+        with self.assertRaisesRegex(IndexError, 'out of range'):
+            t[2]
+
+    def test_array_3(self):
+        t = edgedb.Array((1, []))
+        t[1].append(t)
+        self.assertEqual(t[1], [t])

@@ -62,7 +62,7 @@ static Py_hash_t
 array_hash(EdgeArrayObject *o)
 {
      if (o->cached_hash == -1) {
-        o->cached_hash = EdgeGeneric_HashWithBase(
+        o->cached_hash = _EdgeGeneric_HashWithBase(
             base_hash, o->ob_item, Py_SIZE(o));
     }
     return o->cached_hash;
@@ -92,7 +92,7 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    if (!Edge_NoKeywords("edgedb.Array", kwargs) ||
+    if (!_Edge_NoKeywords("edgedb.Array", kwargs) ||
             !PyArg_UnpackTuple(args, "edgedb.Array", 0, 1, &iterable))
     {
         return NULL;
@@ -173,7 +173,7 @@ EdgeArray_InitType(void)
         return NULL;
     }
 
-    base_hash = EdgeGeneric_HashString("edgedb.Array");
+    base_hash = _EdgeGeneric_HashString("edgedb.Array");
     if (base_hash == -1) {
         return NULL;
     }

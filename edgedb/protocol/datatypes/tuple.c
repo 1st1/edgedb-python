@@ -54,7 +54,7 @@ tuple_dealloc(EdgeTupleObject *o)
 static Py_hash_t
 tuple_hash(EdgeTupleObject *o)
 {
-    return EdgeGeneric_Hash(o->ob_item, Py_SIZE(o));
+    return _EdgeGeneric_Hash(o->ob_item, Py_SIZE(o));
 }
 
 
@@ -81,7 +81,7 @@ tuple_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    if (!Edge_NoKeywords("edgedb.Tuple", kwargs) ||
+    if (!_Edge_NoKeywords("edgedb.Tuple", kwargs) ||
             !PyArg_UnpackTuple(args, "edgedb.Tuple", 0, 1, &iterable))
     {
         return NULL;

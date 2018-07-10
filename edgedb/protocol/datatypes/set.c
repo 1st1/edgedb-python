@@ -90,7 +90,7 @@ static Py_hash_t
 set_hash(EdgeSetObject *o)
 {
     if (o->cached_hash == -1) {
-        o->cached_hash = EdgeGeneric_HashWithBase(
+        o->cached_hash = _EdgeGeneric_HashWithBase(
             base_hash, _PyList_ITEMS(o->els), PyList_GET_SIZE(o->els));
     }
     return o->cached_hash;
@@ -142,7 +142,7 @@ EdgeSet_InitType(void)
         return NULL;
     }
 
-    base_hash = EdgeGeneric_HashString("edgedb.Set");
+    base_hash = _EdgeGeneric_HashString("edgedb.Set");
     if (base_hash == -1) {
         return NULL;
     }

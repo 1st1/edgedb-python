@@ -128,11 +128,11 @@ int EdgeArray_SetItem(EdgeArrayObject *, Py_ssize_t, PyObject *);
 
 
 /* === helpers ============================================== */
-int Edge_NoKeywords(const char *, PyObject *);
+int _Edge_NoKeywords(const char *, PyObject *);
 
-Py_hash_t EdgeGeneric_Hash(PyObject **, Py_ssize_t);
-Py_hash_t EdgeGeneric_HashWithBase(Py_hash_t, PyObject **, Py_ssize_t);
-Py_hash_t EdgeGeneric_HashString(const char *);
+Py_hash_t _EdgeGeneric_Hash(PyObject **, Py_ssize_t);
+Py_hash_t _EdgeGeneric_HashWithBase(Py_hash_t, PyObject **, Py_ssize_t);
+Py_hash_t _EdgeGeneric_HashString(const char *);
 
 
 #endif

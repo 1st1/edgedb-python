@@ -2,7 +2,7 @@
 
 
 int
-Edge_NoKeywords(const char *funcname, PyObject *kwargs)
+_Edge_NoKeywords(const char *funcname, PyObject *kwargs)
 {
     if (kwargs == NULL) {
         return 1;

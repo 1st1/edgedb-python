@@ -2,7 +2,7 @@
 
 
 Py_hash_t
-EdgeGeneric_Hash(PyObject **els, Py_ssize_t len)
+_EdgeGeneric_Hash(PyObject **els, Py_ssize_t len)
 {
     /* Python's tuple hash algorithm.  Hashes of edgedb.Tuple and
        edgedb.NamedTuple must be equal to hashes of Python't tuples
@@ -33,7 +33,7 @@ EdgeGeneric_Hash(PyObject **els, Py_ssize_t len)
 
 
 Py_hash_t
-EdgeGeneric_HashString(const char *s)
+_EdgeGeneric_HashString(const char *s)
 {
     PyObject *o = PyUnicode_FromString(s);
     if (o == NULL) {
@@ -47,13 +47,13 @@ EdgeGeneric_HashString(const char *s)
 
 
 Py_hash_t
-EdgeGeneric_HashWithBase(Py_hash_t base_hash, PyObject **els, Py_ssize_t len)
+_EdgeGeneric_HashWithBase(Py_hash_t base_hash, PyObject **els, Py_ssize_t len)
 {
     /* Roughly equivalent to calling `hash((base_hash, *els))` in Python */
 
     assert(base_hash != -1);
 
-    Py_hash_t els_hash = EdgeGeneric_Hash(els, len);
+    Py_hash_t els_hash = _EdgeGeneric_Hash(els, len);
     if (els_hash == -1) {
         return -1;
     }

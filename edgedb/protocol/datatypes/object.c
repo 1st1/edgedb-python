@@ -89,7 +89,7 @@ static Py_hash_t
 object_hash(EdgeObject *o)
 {
     if (o->cached_hash == -1) {
-        o->cached_hash = EdgeGeneric_HashWithBase(
+        o->cached_hash = _EdgeGeneric_HashWithBase(
             base_hash, o->ob_item, Py_SIZE(o));
     }
     return o->cached_hash;
@@ -143,7 +143,7 @@ EdgeObject_InitType(void)
         return NULL;
     }
 
-    base_hash = EdgeGeneric_HashString("edgedb.Object");
+    base_hash = _EdgeGeneric_HashString("edgedb.Object");
     if (base_hash == -1) {
         return NULL;
     }
