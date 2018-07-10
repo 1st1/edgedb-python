@@ -1,4 +1,5 @@
 #include "datatypes.h"
+#include "internal.h"
 
 
 static int init_type_called = 0;
@@ -10,8 +11,7 @@ EdgeSet_New(Py_ssize_t size)
 {
     assert(init_type_called);
 
-    PyObject *l;
-    l = PyList_New(size);
+    PyObject *l = PyList_New(size);
     if (l == NULL) {
         return NULL;
     }
@@ -80,9 +80,11 @@ static void
 set_dealloc(EdgeSetObject *o)
 {
     PyObject_GC_UnTrack(o);
+    Py_TRASHCAN_SAFE_BEGIN(o)
     o->cached_hash = -1;
     Py_CLEAR(o->els);
-    PyObject_GC_Del(o);
+    Py_TRASHCAN_SAFE_END(o)
+    Py_TYPE(o)->tp_free((PyObject *)o);
 }
 
 
@@ -91,7 +93,9 @@ set_hash(EdgeSetObject *o)
 {
     if (o->cached_hash == -1) {
         o->cached_hash = _EdgeGeneric_HashWithBase(
-            base_hash, _PyList_ITEMS(o->els), PyList_GET_SIZE(o->els));
+            base_hash,
+            _PyList_ITEMS(o->els),
+            PyList_GET_SIZE(o->els));
     }
     return o->cached_hash;
 }
@@ -111,8 +115,41 @@ set_getitem(EdgeSetObject *o, Py_ssize_t i)
         PyErr_SetString(PyExc_IndexError, "edgedb.Set index out of range");
         return NULL;
     }
-    return PyList_GetItem(o->els, i);
+    PyObject *val = PyList_GetItem(o->els, i);
+    Py_INCREF(val);
+    return val;
 }
+
+
+static PyObject *
+set_repr(EdgeSetObject *o)
+{
+    _PyUnicodeWriter writer;
+    _PyUnicodeWriter_Init(&writer);
+    writer.overallocate = 1;
+
+    if (_PyUnicodeWriter_WriteASCIIString(&writer, "Set{", 4) < 0) {
+        goto error;
+    }
+
+    if (_EdgeGeneric_RenderValues(&writer, (PyObject *)o,
+                                  _PyList_ITEMS(o->els),
+                                  PyList_GET_SIZE(o->els)) < 0)
+    {
+        goto error;
+    }
+
+    if (_PyUnicodeWriter_WriteChar(&writer, '}') < 0) {
+        goto error;
+    }
+
+    return _PyUnicodeWriter_Finish(&writer);
+
+error:
+    _PyUnicodeWriter_Dealloc(&writer);
+    return NULL;
+}
+
 
 
 static PySequenceMethods set_as_sequence = {
@@ -132,6 +169,8 @@ PyTypeObject EdgeSet_Type = {
     .tp_new = set_tp_new,
     .tp_hash = (hashfunc)set_hash,
     .tp_as_sequence = &set_as_sequence,
+    .tp_repr = (reprfunc)set_repr,
+    .tp_free = PyObject_GC_Del,
 };
 
 

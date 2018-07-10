@@ -1,5 +1,6 @@
 #include "datatypes.h"
 #include "freelist.h"
+#include "internal.h"
 
 
 static int init_type_called = 0;
@@ -54,7 +55,9 @@ array_dealloc(EdgeArrayObject *o)
 {
     o->cached_hash = -1;
     PyObject_GC_UnTrack(o);
+    Py_TRASHCAN_SAFE_BEGIN(o)
     EDGE_DEALLOC_WITH_FREELIST(EDGE_ARRAY, EdgeArrayObject, o);
+    Py_TRASHCAN_SAFE_END(o)
 }
 
 
@@ -144,6 +147,35 @@ array_getitem(EdgeArrayObject *o, Py_ssize_t i)
 }
 
 
+static PyObject *
+array_repr(EdgeArrayObject *o)
+{
+    _PyUnicodeWriter writer;
+    _PyUnicodeWriter_Init(&writer);
+    writer.overallocate = 1;
+
+    if (_PyUnicodeWriter_WriteChar(&writer, '[') < 0) {
+        goto error;
+    }
+
+    if (_EdgeGeneric_RenderValues(&writer,
+                                  (PyObject *)o, o->ob_item, Py_SIZE(o)) < 0)
+    {
+        goto error;
+    }
+
+    if (_PyUnicodeWriter_WriteChar(&writer, ']') < 0) {
+        goto error;
+    }
+
+    return _PyUnicodeWriter_Finish(&writer);
+
+error:
+    _PyUnicodeWriter_Dealloc(&writer);
+    return NULL;
+}
+
+
 static PySequenceMethods array_as_sequence = {
     .sq_length = (lenfunc)array_length,
     .sq_item = (ssizeargfunc)array_getitem,
@@ -162,7 +194,8 @@ PyTypeObject EdgeArray_Type = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_traverse = (traverseproc)array_traverse,
     .tp_new = array_new,
-    .tp_free = PyObject_GC_Del
+    .tp_free = PyObject_GC_Del,
+    .tp_repr = (reprfunc)array_repr,
 };
 
 

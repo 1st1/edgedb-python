@@ -47,6 +47,7 @@ class TestTuple(unittest.TestCase):
         t = edgedb.Tuple()
         self.assertEqual(len(t), 0)
         self.assertEqual(hash(t), hash(()))
+        self.assertEqual(repr(t), '()')
         with self.assertRaisesRegex(IndexError, 'out of range'):
             t[0]
 
@@ -54,6 +55,8 @@ class TestTuple(unittest.TestCase):
         t = edgedb.Tuple((1, 'a'))
         self.assertEqual(len(t), 2)
         self.assertEqual(hash(t), hash((1, 'a')))
+
+        self.assertEqual(repr(t), "(1, 'a')")
 
         self.assertEqual(t[0], 1)
         self.assertEqual(t[1], 'a')
@@ -64,6 +67,9 @@ class TestTuple(unittest.TestCase):
         t = edgedb.Tuple((1, []))
         t[1].append(t)
         self.assertEqual(t[1], [t])
+
+        self.assertEqual(repr(t), '(1, [(...)])')
+        self.assertEqual(str(t), '(1, [(...)])')
 
     def test_tuple_freelist_1(self):
         l = []
@@ -81,6 +87,8 @@ class TestNamedTuple(unittest.TestCase):
 
     def test_namedtuple_2(self):
         t = edgedb.NamedTuple(a=1, b='a')
+
+        self.assertEqual(repr(t), "(a := 1, b := 'a')")
 
         self.assertEqual(t[0], 1)
         self.assertEqual(t[1], 'a')
@@ -101,6 +109,9 @@ class TestNamedTuple(unittest.TestCase):
         t.b.append(t)
         self.assertEqual(t.b, [t])
 
+        self.assertEqual(repr(t), '(a := 1, b := [(...)])')
+        self.assertEqual(str(t), '(a := 1, b := [(...)])')
+
     def test_namedtuple_4(self):
         t1 = edgedb.NamedTuple(a=1, b='aaaa')
         t2 = edgedb.Tuple((1, 'aaaa'))
@@ -115,6 +126,8 @@ class TestObject(unittest.TestCase):
     def test_object_1(self):
         f = create_object_factory(('a', 'lb', 'c'), frozenset(['lb']))
         o = f(1, 2, 3)
+
+        self.assertEqual(repr(o), 'Object{a := 1, @lb := 2, c := 3}')
 
         self.assertEqual(o.a, 1)
         self.assertEqual(o.c, 3)
@@ -139,13 +152,27 @@ class TestObject(unittest.TestCase):
         self.assertNotEqual(hash(o), hash(f(1, 2, 'aaaa')))
         self.assertNotEqual(hash(o), hash((1, 2, 3)))
 
+    def test_object_3(self):
+        f = create_object_factory(('a', 'c'), frozenset())
+        o = f(1, [])
+
+        o.c.append(o)
+        self.assertEqual(repr(o), 'Object{a := 1, c := [Object{...}]}')
+
+        with self.assertRaisesRegex(TypeError, 'unhashable'):
+            hash(o)
+
 
 class TestSet(unittest.TestCase):
 
     def test_set_1(self):
-        s = edgedb.Set((1, 2, 3000, 'a'))
+        s = edgedb.Set(())
+        self.assertEqual(repr(s), 'Set{}')
+
+        s = edgedb.Set((1, 2, [], 'a'))
 
         self.assertEqual(s[1], 2)
+        self.assertEqual(s[2], [])
         self.assertEqual(len(s), 4)
         with self.assertRaises(IndexError):
             s[10]
@@ -155,6 +182,8 @@ class TestSet(unittest.TestCase):
 
     def test_set_2(self):
         s = edgedb.Set((1, 2, 3000, 'a'))
+
+        self.assertEqual(repr(s), "Set{1, 2, 3000, 'a'}")
 
         self.assertEqual(
             hash(s),
@@ -171,6 +200,11 @@ class TestSet(unittest.TestCase):
         self.assertEqual(hash(s), hash(edgedb.Set(())))
         self.assertNotEqual(hash(s), hash(()))
 
+    def test_set_4(self):
+        s = edgedb.Set(([],))
+        s[0].append(s)
+        self.assertEqual(repr(s), "Set{[Set{...}]}")
+
 
 class TestArray(unittest.TestCase):
 
@@ -180,9 +214,14 @@ class TestArray(unittest.TestCase):
         self.assertNotEqual(hash(t), hash(()))
         with self.assertRaisesRegex(IndexError, 'out of range'):
             t[0]
+        self.assertEqual(repr(t), "[]")
 
     def test_array_2(self):
         t = edgedb.Array((1, 'a'))
+
+        self.assertEqual(repr(t), "[1, 'a']")
+        self.assertEqual(str(t), "[1, 'a']")
+
         self.assertEqual(len(t), 2)
         self.assertEqual(hash(t), hash(edgedb.Array([1, 'a'])))
         self.assertNotEqual(hash(t), hash(edgedb.Array([10, 'ab'])))
@@ -196,3 +235,4 @@ class TestArray(unittest.TestCase):
         t = edgedb.Array((1, []))
         t[1].append(t)
         self.assertEqual(t[1], [t])
+        self.assertEqual(repr(t), '[1, [[...]]]')

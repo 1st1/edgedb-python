@@ -1,11 +1,12 @@
 #ifndef EDGE_DATATYPES_H
 #define EDGE_DATATYPES_H
 
+
+#include <stdint.h>
 #include "Python.h"
 
 
 #define EDGE_MAX_TUPLE_SIZE (0x4000 - 1)
-#define EDGE_RECORD_LINK_PROP_BIT  (1 << 15)
 
 
 /* === edgedb.RecordDesc ==================================== */
@@ -18,6 +19,7 @@ typedef struct {
     PyObject_HEAD
     PyObject *index;
     PyObject *keys;
+    uint8_t *posbits;
     Py_ssize_t size;
 } EdgeRecordDescObject;
 
@@ -25,6 +27,8 @@ typedef enum {L_ERROR, L_NOT_FOUND, L_LINKPROP, L_ATTR} edge_attr_lookup_t;
 
 PyObject * EdgeRecordDesc_InitType(void);
 EdgeRecordDescObject * EdgeRecordDesc_New(PyObject *, PyObject *);
+PyObject * EdgeRecordDesc_PointerName(EdgeRecordDescObject *, Py_ssize_t);
+int EdgeRecordDesc_PointerIsLinkProp(EdgeRecordDescObject *, Py_ssize_t);
 edge_attr_lookup_t EdgeRecordDesc_Lookup(
     EdgeRecordDescObject *, PyObject *, Py_ssize_t *);
 
@@ -125,14 +129,6 @@ typedef struct {
 PyObject * EdgeArray_InitType(void);
 EdgeArrayObject * EdgeArray_New(Py_ssize_t size);
 int EdgeArray_SetItem(EdgeArrayObject *, Py_ssize_t, PyObject *);
-
-
-/* === helpers ============================================== */
-int _Edge_NoKeywords(const char *, PyObject *);
-
-Py_hash_t _EdgeGeneric_Hash(PyObject **, Py_ssize_t);
-Py_hash_t _EdgeGeneric_HashWithBase(Py_hash_t, PyObject **, Py_ssize_t);
-Py_hash_t _EdgeGeneric_HashString(const char *);
 
 
 #endif

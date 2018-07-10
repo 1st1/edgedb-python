@@ -65,7 +65,6 @@
         TYPEDEF *_o = obj;                                                  \
         Py_ssize_t i;                                                       \
         Py_ssize_t len = Py_SIZE(_o);                                       \
-        Py_TRASHCAN_SAFE_BEGIN(_o)                                          \
         if (len > 0) {                                                      \
             i = len;                                                        \
             while (--i >= 0) {                                              \
@@ -84,8 +83,7 @@
             }                                                               \
         }                                                                   \
         Py_TYPE(_o)->tp_free((PyObject *)_o);                               \
-    _done:                                                                  \
-        Py_TRASHCAN_SAFE_END(_o)                                            \
+    _done: ;                                                                \
     }
 
 

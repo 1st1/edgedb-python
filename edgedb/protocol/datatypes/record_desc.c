@@ -1,4 +1,8 @@
 #include "datatypes.h"
+#include "internal.h"
+
+
+#define POINTER_PROP_IS_LINKPROP    (1 << 0)
 
 
 static void
@@ -7,6 +11,7 @@ record_desc_dealloc(EdgeRecordDescObject *o)
     PyObject_GC_UnTrack(o);
     Py_CLEAR(o->index);
     Py_CLEAR(o->keys);
+    PyMem_RawFree(o->posbits);
     PyObject_GC_Del(o);
 }
 
@@ -138,31 +143,45 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
         return NULL;
     }
 
-    for (Py_ssize_t i = 0; i < Py_SIZE(keys); i++) {
+    Py_ssize_t size = Py_SIZE(keys);
+    uint8_t *bits = (uint8_t *)PyMem_RawCalloc((size_t)size, sizeof(uint8_t));
+    if (bits == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    for (Py_ssize_t i = 0; i < size; i++) {
         PyObject *key = PyTuple_GET_ITEM(keys, i);  /* borrowed */
+        if (!PyUnicode_CheckExact(key)) {
+            PyErr_SetString(
+                PyExc_ValueError,
+                "RecordDescriptor received a non-str key");
+            goto fail;
+        }
+
         Py_ssize_t key_index = i;
 
         if (link_props_keys != NULL) {
             int ret = PySet_Contains(link_props_keys, key);
             if (ret < 0) {
                 Py_DECREF(index);
-                return NULL;
+                goto fail;
             }
             if (ret > 0) {
-                key_index |= EDGE_RECORD_LINK_PROP_BIT;
+                bits[i] |= POINTER_PROP_IS_LINKPROP;
             }
         }
 
         PyObject *num = PyLong_FromLong(key_index);
         if (num == NULL) {
             Py_DECREF(index);
-            return NULL;
+            goto fail;
         }
 
         if (PyDict_SetItem(index, key, num)) {
             Py_DECREF(index);
             Py_DECREF(num);
-            return NULL;
+            goto fail;
         }
 
         Py_DECREF(num);
@@ -171,18 +190,24 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
     o = PyObject_GC_New(EdgeRecordDescObject, &EdgeRecordDesc_Type);
     if (o == NULL) {
         Py_DECREF(index);
-        return NULL;
+        goto fail;
     }
+
+    o->posbits = bits;
 
     o->index = index;
 
     Py_INCREF(keys);
     o->keys = keys;
 
-    o->size = Py_SIZE(keys);
+    o->size = size;
 
     PyObject_GC_Track(o);
     return o;
+
+fail:
+    PyMem_RawFree(bits);
+    return NULL;
 }
 
 
@@ -205,15 +230,40 @@ EdgeRecordDesc_Lookup(EdgeRecordDescObject *d, PyObject *key, Py_ssize_t *pos)
         assert(PyErr_Occurred());
         return L_ERROR;
     }
+    assert(res_long < d->size);
+    *pos = res_long;
 
-    if (res_long & EDGE_RECORD_LINK_PROP_BIT) {
-        *pos = res_long & EDGE_MAX_TUPLE_SIZE;
+    if (d->posbits[res_long] & POINTER_PROP_IS_LINKPROP) {
         return L_LINKPROP;
     }
     else {
-        *pos = res_long;
         return L_ATTR;
     }
+}
+
+
+PyObject *
+EdgeRecordDesc_PointerName(EdgeRecordDescObject *o, Py_ssize_t pos)
+{
+    assert(EdgeRecordDesc_Check(o));
+    PyObject * key = PyTuple_GetItem(o->keys, pos);
+    if (key == NULL) {
+        return NULL;
+    }
+    Py_INCREF(key);
+    return key;
+}
+
+
+int
+EdgeRecordDesc_PointerIsLinkProp(EdgeRecordDescObject *o, Py_ssize_t pos)
+{
+    assert(EdgeRecordDesc_Check(o));
+    if (pos < 0 || pos >= o->size) {
+        PyErr_SetNone(PyExc_IndexError);
+        return -1;
+    }
+    return o->posbits[pos] & POINTER_PROP_IS_LINKPROP;
 }
 
 

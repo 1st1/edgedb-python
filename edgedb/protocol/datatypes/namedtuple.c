@@ -1,5 +1,6 @@
 #include "datatypes.h"
 #include "freelist.h"
+#include "internal.h"
 
 
 EDGE_SETUP_FREELIST(
@@ -57,7 +58,9 @@ namedtuple_dealloc(EdgeNamedTupleObject *o)
 {
     PyObject_GC_UnTrack(o);
     Py_CLEAR(o->desc);
+    Py_TRASHCAN_SAFE_BEGIN(o)
     EDGE_DEALLOC_WITH_FREELIST(EDGE_NAMED_TUPLE, EdgeNamedTupleObject, o);
+    Py_TRASHCAN_SAFE_END(o)
 }
 
 
@@ -228,6 +231,36 @@ namedtuple_getitem(EdgeNamedTupleObject *o, Py_ssize_t i)
 }
 
 
+static PyObject *
+namedtuple_repr(EdgeNamedTupleObject *o)
+{
+    _PyUnicodeWriter writer;
+    _PyUnicodeWriter_Init(&writer);
+    writer.overallocate = 1;
+
+    if (_PyUnicodeWriter_WriteChar(&writer, '(') < 0) {
+        goto error;
+    }
+
+    if (_EdgeGeneric_RenderItems(&writer,
+                                 (PyObject *)o, o->desc,
+                                 o->ob_item, Py_SIZE(o), 0) < 0)
+    {
+        goto error;
+    }
+
+    if (_PyUnicodeWriter_WriteChar(&writer, ')') < 0) {
+        goto error;
+    }
+
+    return _PyUnicodeWriter_Finish(&writer);
+
+error:
+    _PyUnicodeWriter_Dealloc(&writer);
+    return NULL;
+}
+
+
 static PySequenceMethods namedtuple_as_sequence = {
     .sq_length = (lenfunc)namedtuple_length,
     .sq_item = (ssizeargfunc)namedtuple_getitem,
@@ -246,7 +279,8 @@ PyTypeObject EdgeNamedTuple_Type = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_traverse = (traverseproc)namedtuple_traverse,
     .tp_new = namedtuple_new,
-    .tp_free = PyObject_GC_Del
+    .tp_free = PyObject_GC_Del,
+    .tp_repr = (reprfunc)namedtuple_repr,
 };
 
 

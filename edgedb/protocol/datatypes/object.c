@@ -1,5 +1,6 @@
 #include "datatypes.h"
 #include "freelist.h"
+#include "internal.h"
 
 
 static int init_type_called = 0;
@@ -66,7 +67,9 @@ object_dealloc(EdgeObject *o)
     PyObject_GC_UnTrack(o);
     Py_CLEAR(o->desc);
     o->cached_hash = -1;
+    Py_TRASHCAN_SAFE_BEGIN(o)
     EDGE_DEALLOC_WITH_FREELIST(EDGE_OBJECT, EdgeObject, o);
+    Py_TRASHCAN_SAFE_END(o)
 }
 
 
@@ -122,6 +125,36 @@ object_getattr(EdgeObject *o, PyObject *name)
 }
 
 
+static PyObject *
+object_repr(EdgeObject *o)
+{
+    _PyUnicodeWriter writer;
+    _PyUnicodeWriter_Init(&writer);
+    writer.overallocate = 1;
+
+    if (_PyUnicodeWriter_WriteASCIIString(&writer, "Object{", 7) < 0) {
+        goto error;
+    }
+
+    if (_EdgeGeneric_RenderItems(&writer,
+                                 (PyObject *)o, o->desc,
+                                 o->ob_item, Py_SIZE(o), 1) < 0)
+    {
+        goto error;
+    }
+
+    if (_PyUnicodeWriter_WriteChar(&writer, '}') < 0) {
+        goto error;
+    }
+
+    return _PyUnicodeWriter_Finish(&writer);
+
+error:
+    _PyUnicodeWriter_Dealloc(&writer);
+    return NULL;
+}
+
+
 PyTypeObject EdgeObject_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "edgedb.Object",
@@ -132,7 +165,8 @@ PyTypeObject EdgeObject_Type = {
     .tp_getattro = (getattrofunc)object_getattr,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_traverse = (traverseproc)object_traverse,
-    .tp_free = PyObject_GC_Del
+    .tp_free = PyObject_GC_Del,
+    .tp_repr = (reprfunc)object_repr,
 };
 
 
