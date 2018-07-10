@@ -36,6 +36,8 @@ edge_attr_lookup_t EdgeRecordDesc_Lookup(
 
 extern PyTypeObject EdgeTuple_Type;
 
+#define EdgeTuple_Check(d) (Py_TYPE(d) == &EdgeTuple_Type)
+
 typedef struct {
     PyObject_VAR_HEAD
     PyObject *ob_item[1];
@@ -53,6 +55,8 @@ Py_hash_t EdgeTupleLike_Hash(PyObject **, Py_ssize_t);
 
 extern PyTypeObject EdgeNamedTuple_Type;
 
+#define EdgeNamedTuple_Check(d) (Py_TYPE(d) == &EdgeNamedTuple_Type)
+
 typedef struct {
     PyObject_VAR_HEAD
     EdgeRecordDescObject *desc;
@@ -63,7 +67,27 @@ PyObject * EdgeNamedTuple_InitType(void);
 EdgeNamedTupleObject * EdgeNamedTuple_New(EdgeRecordDescObject *);
 
 
-/* helpers */
+/* === edgedb.Object ======================================== */
+
+#define EDGE_OBJECT_FREELIST_SIZE 2000
+#define EDGE_OBJECT_FREELIST_MAXSAVE 20
+
+extern PyTypeObject EdgeObject_Type;
+
+#define EdgeObject_Check(d) (Py_TYPE(d) == &EdgeObject_Type)
+
+typedef struct {
+    PyObject_VAR_HEAD
+    EdgeRecordDescObject *desc;
+    PyObject *ob_item[1];
+} EdgeObject;
+
+PyObject * EdgeObject_InitType(void);
+EdgeObject * EdgeObject_New(EdgeRecordDescObject *);
+int EdgeObject_SetItem(EdgeObject *, Py_ssize_t, PyObject *);
+
+
+/* === helpers ============================================== */
 int Edge_NoKeywords(const char *, PyObject *);
 
 #endif

@@ -2,7 +2,7 @@ import unittest
 
 
 import edgedb
-from edgedb.protocol.protocol import RecordDescriptor
+from edgedb.protocol.protocol import RecordDescriptor, create_object_factory
 
 
 class TestRecordDesc(unittest.TestCase):
@@ -93,3 +93,25 @@ class TestNamedTuple(unittest.TestCase):
         t = edgedb.NamedTuple(a=1, b=[])
         t.b.append(t)
         self.assertEqual(t.b, [t])
+
+
+class TestObject(unittest.TestCase):
+
+    def test_object_1(self):
+        f = create_object_factory(('a', 'lb', 'c'), frozenset(['lb']))
+        o = f(1, 2, 3)
+
+        self.assertEqual(o.a, 1)
+        self.assertEqual(o.c, 3)
+
+        with self.assertRaises(AttributeError):
+            o.lb
+
+        with self.assertRaises(AttributeError):
+            o.z
+
+        with self.assertRaises(TypeError):
+            len(o)
+
+        with self.assertRaises(TypeError):
+            o[0]

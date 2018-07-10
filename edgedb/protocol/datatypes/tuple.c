@@ -23,6 +23,7 @@ EdgeTuple_New(Py_ssize_t size)
     EDGE_NEW_WITH_FREELIST(EDGE_TUPLE, EdgeTupleObject,
                            &EdgeTuple_Type, obj, size)
     assert(obj != NULL);
+    assert(EdgeTuple_Check(obj));
 
     PyObject_GC_Track(obj);
     return obj;
@@ -113,8 +114,9 @@ tuple_getitem(EdgeTupleObject *o, Py_ssize_t i)
         PyErr_SetString(PyExc_IndexError, "tuple index out of range");
         return NULL;
     }
-    Py_INCREF(o->ob_item[i]);
-    return o->ob_item[i];
+    PyObject *el = EdgeTuple_GET_ITEM(o, i);
+    Py_INCREF(el);
+    return el;
 }
 
 

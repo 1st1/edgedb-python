@@ -391,3 +391,21 @@ class Protocol(BaseProtocol, asyncio.Protocol):
 RecordDescriptor = datatypes.EdgeRecordDesc_InitType()
 Tuple = datatypes.EdgeTuple_InitType()
 NamedTuple = datatypes.EdgeNamedTuple_InitType()
+Object = datatypes.EdgeObject_InitType()
+
+
+def create_object_factory(tuple pointers, frozenset linkprops):
+    desc = datatypes.EdgeRecordDesc_New(pointers, linkprops)
+    size = len(pointers)
+
+    def factory(*items):
+        if len(items) != size:
+            raise ValueError
+
+        o = datatypes.EdgeObject_New(desc)
+        for i in range(size):
+            datatypes.EdgeObject_SetItem(o, i, items[i])
+
+        return o
+
+    return factory

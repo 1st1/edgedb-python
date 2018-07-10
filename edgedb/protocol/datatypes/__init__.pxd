@@ -23,7 +23,12 @@ cimport cpython
 cdef extern from "datatypes/datatypes.h":
 
     object EdgeRecordDesc_InitType()
-    object EdgeRecordDesc_New(object)
+    object EdgeRecordDesc_New(object, object)
 
     object EdgeTuple_InitType()
+
     object EdgeNamedTuple_InitType()
+
+    object EdgeObject_InitType()
+    object EdgeObject_New(object);
+    int EdgeObject_SetItem(object, Py_ssize_t, object) except -1;

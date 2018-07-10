@@ -29,6 +29,7 @@ EdgeNamedTuple_New(EdgeRecordDescObject *desc)
     EDGE_NEW_WITH_FREELIST(EDGE_NAMED_TUPLE, EdgeNamedTupleObject,
                            &EdgeNamedTuple_Type, nt, size);
     assert(nt != NULL);
+    assert(EdgeNamedTuple_Check(nt));
 
     Py_INCREF(desc);
     nt->desc = desc;
@@ -208,8 +209,9 @@ namedtuple_getitem(EdgeNamedTupleObject *o, Py_ssize_t i)
         PyErr_SetString(PyExc_IndexError, "namedtuple index out of range");
         return NULL;
     }
-    Py_INCREF(o->ob_item[i]);
-    return o->ob_item[i];
+    PyObject *el = EdgeNamedTuple_GET_ITEM(o, i);
+    Py_INCREF(el);
+    return el;
 }
 
 
