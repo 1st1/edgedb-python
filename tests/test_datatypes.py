@@ -156,3 +156,10 @@ class TestSet(unittest.TestCase):
         self.assertNotEqual(
             hash(s),
             hash((1, 2, 3000, 'a')))
+
+    def test_set_3(self):
+        s = edgedb.Set(())
+
+        self.assertEqual(len(s), 0)
+        self.assertEqual(hash(s), hash(edgedb.Set(())))
+        self.assertNotEqual(hash(s), hash(()))
