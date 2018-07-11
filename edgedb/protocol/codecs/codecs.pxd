@@ -41,8 +41,10 @@ cdef class Codec:
         bytes           tid
         str             name
         CodecType       type
-        list            fields_names
+
+        tuple           fields_names
         list            fields_codecs
+        object          desc
 
         encode_func     c_encoder
         decode_func     c_decoder
@@ -66,7 +68,7 @@ cdef class Codec:
 
     @staticmethod
     cdef Codec new_named_tuple_codec(
-        bytes tid, list fields_names, list fields_codecs)
+        bytes tid, tuple fields_names, list fields_codecs)
 
 
 cdef class CodecsRegistry:

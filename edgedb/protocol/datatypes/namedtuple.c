@@ -16,9 +16,14 @@ EDGE_SETUP_FREELIST(
     (((EdgeNamedTupleObject *)(op))->ob_item[i] = v)
 
 
+static int init_type_called = 0;
+
+
 EdgeNamedTupleObject *
 EdgeNamedTuple_New(EdgeRecordDescObject *desc)
 {
+    assert(init_type_called);
+
     if (desc == NULL || !EdgeRecordDesc_Check(desc)) {
         PyErr_BadInternalCall();
         return NULL;
@@ -291,5 +296,6 @@ EdgeNamedTuple_InitType(void)
         return NULL;
     }
 
+    init_type_called = 1;
     return (PyObject *)&EdgeNamedTuple_Type;
 }

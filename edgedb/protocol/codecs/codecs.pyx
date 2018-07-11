@@ -40,7 +40,7 @@ cdef class Codec:
 
     cdef decode_namedtuple(self, CodecContext ctx, FastReadBuffer buf):
         cdef:
-            tuple result
+            object result
             ssize_t elem_count
             ssize_t i
             int32_t elem_len
@@ -55,7 +55,7 @@ cdef class Codec:
                 f'cannot decode namedtuple: expected {len(self.fields_codecs)}'
                 f'elements, got {elem_count}')
 
-        result = cpython.PyTuple_New(elem_count)
+        result = datatypes.EdgeNamedTuple_New(self.desc)
 
         for i in range(elem_count):
             elem_typ = <uint32_t>hton.unpack_int32(buf.read(4))
@@ -67,8 +67,7 @@ cdef class Codec:
                 elem_codec = <Codec>self.fields_codecs[i]
                 elem = elem_codec.decode(elem_buf.slice_from(buf, elem_len))
 
-            cpython.Py_INCREF(elem)
-            cpython.PyTuple_SET_ITEM(result, i, elem)
+            datatypes.EdgeNamedTuple_SetItem(result, i, elem)
 
         return result
 
@@ -100,13 +99,14 @@ cdef class Codec:
 
     @staticmethod
     cdef Codec new_named_tuple_codec(
-            bytes tid, list fields_names, list fields_codecs):
+            bytes tid, tuple fields_names, list fields_codecs):
 
         cdef Codec codec
 
         codec = Codec(tid, 'namedtuple', CODEC_NAMEDTUPLE)
         codec.fields_names = fields_names
         codec.fields_codecs = fields_codecs
+        codec.desc = datatypes.EdgeRecordDesc_New(fields_names, <object>NULL)
         codec.encoder = <codec_encode_func>&Codec.encode_namedtuple
         codec.decoder = <codec_decode_func>&Codec.decode_namedtuple
         return codec
@@ -154,15 +154,16 @@ cdef class CodecsRegistry:
         elif t[0] == 5:
             # named tuple
             els = <uint16_t>hton.unpack_int16(spec.read(2))
-            names = []
             codecs = []
+            names = cpython.PyTuple_New(els)
             for i in range(els):
                 str_len = <uint16_t>hton.unpack_int16(spec.read(2))
                 name = PyUnicode_FromStringAndSize(
                     spec.read(str_len), str_len)
                 pos = <uint16_t>hton.unpack_int16(spec.read(2))
 
-                names.append(name)
+                cpython.PyTuple_SetItem(names, i, name)
+
                 codecs.append(codecs_list[pos])
 
             return Codec.new_named_tuple_codec(tid, names, codecs)

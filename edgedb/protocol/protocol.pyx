@@ -20,6 +20,8 @@
 # cython: language_level=3
 
 
+cimport cpython
+
 import asyncio
 import collections
 import time

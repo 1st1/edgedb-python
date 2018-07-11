@@ -4,6 +4,8 @@
 
 #define POINTER_PROP_IS_LINKPROP    (1 << 0)
 
+static int init_type_called = 0;
+
 
 static void
 record_desc_dealloc(EdgeRecordDescObject *o)
@@ -115,6 +117,8 @@ EdgeRecordDescObject *
 EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
 {
     EdgeRecordDescObject *o;
+
+    assert(init_type_called);
 
     if (!keys || !PyTuple_CheckExact(keys)) {
         PyErr_SetString(
@@ -274,5 +278,6 @@ EdgeRecordDesc_InitType(void)
         return NULL;
     }
 
+    init_type_called = 1;
     return (PyObject *)&EdgeRecordDesc_Type;
 }

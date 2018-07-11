@@ -16,9 +16,14 @@ EDGE_SETUP_FREELIST(
     (((EdgeTupleObject *)(op))->ob_item[i] = v)
 
 
+static int init_type_called = 0;
+
+
 EdgeTupleObject *
 EdgeTuple_New(Py_ssize_t size)
 {
+    assert(init_type_called);
+
     EdgeTupleObject *obj = NULL;
 
     EDGE_NEW_WITH_FREELIST(EDGE_TUPLE, EdgeTupleObject,
@@ -195,5 +200,6 @@ EdgeTuple_InitType(void)
         return NULL;
     }
 
+    init_type_called = 1;
     return (PyObject *)&EdgeTuple_Type;
 }

@@ -23,6 +23,8 @@ EDGE_SETUP_FREELIST(
 EdgeArrayObject *
 EdgeArray_New(Py_ssize_t size)
 {
+    assert(init_type_called);
+
     EdgeArrayObject *obj = NULL;
 
     EDGE_NEW_WITH_FREELIST(EDGE_ARRAY, EdgeArrayObject,
