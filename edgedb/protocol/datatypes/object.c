@@ -51,6 +51,14 @@ EdgeObject_New(PyObject *desc)
 
     Py_ssize_t size = EdgeRecordDesc_GetSize(desc);
 
+    if (size > EDGE_MAX_TUPLE_SIZE) {
+        PyErr_Format(
+            PyExc_ValueError,
+            "Cannot create Object with more than %d elements",
+            EDGE_MAX_TUPLE_SIZE);
+        return NULL;
+    }
+
     EdgeObject *o = NULL;
     EDGE_NEW_WITH_FREELIST(EDGE_OBJECT, EdgeObject,
                            &EdgeObject_Type, o, size);
@@ -71,7 +79,7 @@ EdgeObject_New(PyObject *desc)
 int
 EdgeObject_SetItem(PyObject *ob, Py_ssize_t i, PyObject *el)
 {
-    assert(EdgeObject_Check(o));
+    assert(EdgeObject_Check(ob));
     EdgeObject *o = (EdgeObject *)ob;
     assert(i >= 0);
     assert(i < Py_SIZE(o));

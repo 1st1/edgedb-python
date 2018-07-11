@@ -148,7 +148,7 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
 
     if (Py_SIZE(keys) > EDGE_MAX_TUPLE_SIZE) {
         PyErr_Format(
-            PyExc_TypeError,
+            PyExc_ValueError,
             "EdgeDB does not supports tuples with more than %d elements",
             EDGE_MAX_TUPLE_SIZE);
         return NULL;

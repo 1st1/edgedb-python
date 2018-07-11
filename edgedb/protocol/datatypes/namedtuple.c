@@ -50,6 +50,14 @@ EdgeNamedTuple_New(PyObject *desc)
 
     Py_ssize_t size = EdgeRecordDesc_GetSize(desc);
 
+    if (size > EDGE_MAX_TUPLE_SIZE) {
+        PyErr_Format(
+            PyExc_ValueError,
+            "Cannot create NamedTuple with more than %d elements",
+            EDGE_MAX_TUPLE_SIZE);
+        return NULL;
+    }
+
     EdgeNamedTupleObject *nt = NULL;
     EDGE_NEW_WITH_FREELIST(EDGE_NAMED_TUPLE, EdgeNamedTupleObject,
                            &EdgeNamedTuple_Type, nt, size);

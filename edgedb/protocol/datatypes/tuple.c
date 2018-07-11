@@ -43,6 +43,14 @@ EdgeTuple_New(Py_ssize_t size)
 {
     assert(init_type_called);
 
+    if (size > EDGE_MAX_TUPLE_SIZE) {
+        PyErr_Format(
+            PyExc_ValueError,
+            "Cannot create Tuple with more than %d elements",
+            EDGE_MAX_TUPLE_SIZE);
+        return NULL;
+    }
+
     EdgeTupleObject *obj = NULL;
 
     EDGE_NEW_WITH_FREELIST(EDGE_TUPLE, EdgeTupleObject,
@@ -59,7 +67,7 @@ EdgeTuple_New(Py_ssize_t size)
 int
 EdgeTuple_SetItem(PyObject *ob, Py_ssize_t i, PyObject *el)
 {
-    assert(EdgeTuple_Check(o));
+    assert(EdgeTuple_Check(ob));
     EdgeTupleObject *o = (EdgeTupleObject *)ob;
     assert(i >= 0);
     assert(i < Py_SIZE(o));

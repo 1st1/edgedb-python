@@ -22,7 +22,7 @@ class TestRecordDesc(unittest.TestCase):
 
         RecordDescriptor(('a', 'b'))
 
-        with self.assertRaisesRegex(TypeError, f'more than {0x4000-1}'):
+        with self.assertRaisesRegex(ValueError, f'more than {0x4000-1}'):
             RecordDescriptor(('a',) * 20000)
 
     def test_recorddesc_2(self):
@@ -70,6 +70,10 @@ class TestTuple(unittest.TestCase):
 
         self.assertEqual(repr(t), '(1, [(...)])')
         self.assertEqual(str(t), '(1, [(...)])')
+
+    def test_tuple_4(self):
+        with self.assertRaisesRegex(ValueError, f'more than {0x4000 - 1}'):
+            edgedb.Tuple([1] * 20000)
 
     def test_tuple_freelist_1(self):
         l = []
