@@ -43,7 +43,7 @@ cdef class Codec:
         CodecType       type
 
         tuple           fields_names
-        list            fields_codecs
+        tuple           fields_codecs
         object          desc
 
         encode_func     c_encoder
@@ -54,6 +54,9 @@ cdef class Codec:
 
     cdef encode_namedtuple(self, CodecContext ctx, WriteBuffer buf, object obj)
     cdef decode_namedtuple(self, CodecContext ctx, FastReadBuffer buf)
+
+    cdef encode_tuple(self, CodecContext ctx, WriteBuffer buf, object obj)
+    cdef decode_tuple(self, CodecContext ctx, FastReadBuffer buf)
 
     cdef encode_scalar(self, CodecContext ctx, WriteBuffer buf, object obj)
     cdef decode_scalar(self, CodecContext ctx, FastReadBuffer buf)
@@ -67,8 +70,11 @@ cdef class Codec:
         encode_func encoder, decode_func decoder)
 
     @staticmethod
+    cdef Codec new_tuple_codec(bytes tid, tuple fields_codecs)
+
+    @staticmethod
     cdef Codec new_named_tuple_codec(
-        bytes tid, tuple fields_names, list fields_codecs)
+        bytes tid, tuple fields_names, tuple fields_codecs)
 
 
 cdef class CodecsRegistry:

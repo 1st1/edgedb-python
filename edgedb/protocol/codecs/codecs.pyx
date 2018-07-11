@@ -71,6 +71,42 @@ cdef class Codec:
 
         return result
 
+    cdef encode_tuple(self, CodecContext ctx, WriteBuffer buf, object obj):
+        raise NotImplementedError
+
+    cdef decode_tuple(self, CodecContext ctx, FastReadBuffer buf):
+        cdef:
+            object result
+            ssize_t elem_count
+            ssize_t i
+            int32_t elem_len
+            uint32_t elem_typ
+            Codec elem_codec
+            FastReadBuffer elem_buf = FastReadBuffer.new()
+
+        elem_count = <ssize_t><uint32_t>hton.unpack_int32(buf.read(4))
+
+        if elem_count != len(self.fields_codecs):
+            raise RuntimeError(
+                f'cannot decode namedtuple: expected {len(self.fields_codecs)}'
+                f'elements, got {elem_count}')
+
+        result = datatypes.EdgeTuple_New(elem_count)
+
+        for i in range(elem_count):
+            elem_typ = <uint32_t>hton.unpack_int32(buf.read(4))
+            elem_len = hton.unpack_int32(buf.read(4))
+
+            if elem_len == -1:
+                elem = None
+            else:
+                elem_codec = <Codec>self.fields_codecs[i]
+                elem = elem_codec.decode(elem_buf.slice_from(buf, elem_len))
+
+            datatypes.EdgeTuple_SetItem(result, i, elem)
+
+        return result
+
     cdef encode_scalar(self, CodecContext ctx, WriteBuffer buf, object obj):
         self.c_encoder(ctx, buf, obj)
 
@@ -98,8 +134,18 @@ cdef class Codec:
         return codec
 
     @staticmethod
+    cdef Codec new_tuple_codec(bytes tid, tuple fields_codecs):
+        cdef Codec codec
+
+        codec = Codec(tid, 'tuple', CODEC_NAMEDTUPLE)
+        codec.fields_codecs = fields_codecs
+        codec.encoder = <codec_encode_func>&Codec.encode_tuple
+        codec.decoder = <codec_decode_func>&Codec.decode_tuple
+        return codec
+
+    @staticmethod
     cdef Codec new_named_tuple_codec(
-            bytes tid, tuple fields_names, list fields_codecs):
+            bytes tid, tuple fields_names, tuple fields_codecs):
 
         cdef Codec codec
 
@@ -149,12 +195,18 @@ cdef class CodecsRegistry:
 
         elif t[0] == 4:
             # tuple
-            raise NotImplementedError
+            els = <uint16_t>hton.unpack_int16(spec.read(2))
+            codecs = cpython.PyTuple_New(els)
+            for i in range(els):
+                pos = <uint16_t>hton.unpack_int16(spec.read(2))
+                cpython.PyTuple_SetItem(codecs, i, codecs_list[pos])
+
+            return Codec.new_tuple_codec(tid, codecs)
 
         elif t[0] == 5:
             # named tuple
             els = <uint16_t>hton.unpack_int16(spec.read(2))
-            codecs = []
+            codecs = cpython.PyTuple_New(els)
             names = cpython.PyTuple_New(els)
             for i in range(els):
                 str_len = <uint16_t>hton.unpack_int16(spec.read(2))
@@ -163,8 +215,7 @@ cdef class CodecsRegistry:
                 pos = <uint16_t>hton.unpack_int16(spec.read(2))
 
                 cpython.PyTuple_SetItem(names, i, name)
-
-                codecs.append(codecs_list[pos])
+                cpython.PyTuple_SetItem(codecs, i, codecs_list[pos])
 
             return Codec.new_named_tuple_codec(tid, names, codecs)
 
