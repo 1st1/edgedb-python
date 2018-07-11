@@ -23,7 +23,7 @@
 static PyObject *
 render_object(PyObject *obj)
 {
-    if (Py_EnterRecursiveCall(" while getting the repr of an EdgeDB object")) {
+    if (Py_EnterRecursiveCall(" while getting a repr of an EdgeDB object")) {
         return NULL;
     }
     PyObject *val = PyObject_Repr(obj);
@@ -42,7 +42,7 @@ _EdgeGeneric_RenderValues(_PyUnicodeWriter *writer,
             if (_PyUnicodeWriter_WriteASCIIString(writer, "...", 3) < 0) {
                 return -1;
             }
-            goto done;
+            return 0;
         }
         else {
             return -1;
@@ -68,7 +68,6 @@ _EdgeGeneric_RenderValues(_PyUnicodeWriter *writer,
         }
     }
 
-done:
     Py_ReprLeave((PyObject *)host);
     return 0;
 
@@ -95,7 +94,7 @@ _EdgeGeneric_RenderItems(_PyUnicodeWriter *writer,
             if (_PyUnicodeWriter_WriteASCIIString(writer, "...", 3) < 0) {
                 return -1;
             }
-            goto done;
+            return 0;
         }
         else {
             return -1;
@@ -151,7 +150,6 @@ _EdgeGeneric_RenderItems(_PyUnicodeWriter *writer,
         }
     }
 
-done:
     Py_ReprLeave((PyObject *)host);
     return 0;
 
