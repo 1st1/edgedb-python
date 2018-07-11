@@ -21,8 +21,6 @@
 #include "internal.h"
 
 
-#define POINTER_PROP_IS_LINKPROP    (1 << 0)
-
 static int init_type_called = 0;
 
 
@@ -31,7 +29,7 @@ record_desc_dealloc(EdgeRecordDescObject *o)
 {
     PyObject_GC_UnTrack(o);
     Py_CLEAR(o->index);
-    Py_CLEAR(o->keys);
+    Py_CLEAR(o->names);
     PyMem_RawFree(o->posbits);
     PyObject_GC_Del(o);
 }
@@ -41,7 +39,7 @@ static int
 record_desc_traverse(EdgeRecordDescObject *o, visitproc visit, void *arg)
 {
     Py_VISIT(o->index);
-    Py_VISIT(o->keys);
+    Py_VISIT(o->names);
     return 0;
 }
 
@@ -133,20 +131,20 @@ PyTypeObject EdgeRecordDesc_Type = {
 
 
 PyObject *
-EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
+EdgeRecordDesc_New(PyObject *names, PyObject *flags)
 {
     EdgeRecordDescObject *o;
 
     assert(init_type_called);
 
-    if (!keys || !PyTuple_CheckExact(keys)) {
+    if (!names || !PyTuple_CheckExact(names)) {
         PyErr_SetString(
             PyExc_TypeError,
             "RecordDescriptor requires a tuple as its first argument");
         return NULL;
     }
 
-    if (Py_SIZE(keys) > EDGE_MAX_TUPLE_SIZE) {
+    if (Py_SIZE(names) > EDGE_MAX_TUPLE_SIZE) {
         PyErr_Format(
             PyExc_ValueError,
             "EdgeDB does not supports tuples with more than %d elements",
@@ -154,11 +152,22 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
         return NULL;
     }
 
-    if (link_props_keys != NULL && !PyFrozenSet_CheckExact(link_props_keys)) {
-        PyErr_SetString(
-            PyExc_TypeError,
-            "RecordDescriptor requires a frozenset as its second argument");
-        return NULL;
+    Py_ssize_t size = Py_SIZE(names);
+
+    if (flags != NULL) {
+        if (!PyTuple_CheckExact(flags)) {
+            PyErr_SetString(
+                PyExc_TypeError,
+                "RecordDescriptor requires a tuple as its second argument");
+            return NULL;
+        }
+        if (Py_SIZE(flags) != size) {
+            PyErr_SetString(
+                PyExc_TypeError,
+                "RecordDescriptor the flags tuple to be the same "
+                "length as the names tuple");
+            return NULL;
+        }
     }
 
     PyObject *index = PyDict_New();
@@ -166,7 +175,6 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
         return NULL;
     }
 
-    Py_ssize_t size = Py_SIZE(keys);
     uint8_t *bits = (uint8_t *)PyMem_RawCalloc((size_t)size, sizeof(uint8_t));
     if (bits == NULL) {
         PyErr_NoMemory();
@@ -174,7 +182,7 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
     }
 
     for (Py_ssize_t i = 0; i < size; i++) {
-        PyObject *key = PyTuple_GET_ITEM(keys, i);  /* borrowed */
+        PyObject *key = PyTuple_GET_ITEM(names, i);  /* borrowed */
         if (!PyUnicode_CheckExact(key)) {
             PyErr_SetString(
                 PyExc_ValueError,
@@ -182,20 +190,21 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
             goto fail;
         }
 
-        Py_ssize_t key_index = i;
-
-        if (link_props_keys != NULL) {
-            int ret = PySet_Contains(link_props_keys, key);
-            if (ret < 0) {
-                Py_DECREF(index);
+        if (flags != NULL) {
+            PyObject *flag = PyTuple_GET_ITEM(flags, i);
+            long flag_long = PyLong_AsLong(flag);
+            if (flag_long < 0) {
+                assert(PyErr_Occurred());
                 goto fail;
             }
-            if (ret > 0) {
-                bits[i] |= POINTER_PROP_IS_LINKPROP;
+            if (flag_long > 128) {
+                PyErr_SetString(PyExc_OverflowError, "invalid name flag");
+                goto fail;
             }
+            bits[i] = (uint8_t)flag_long;
         }
 
-        PyObject *num = PyLong_FromLong(key_index);
+        PyObject *num = PyLong_FromLong(i);
         if (num == NULL) {
             Py_DECREF(index);
             goto fail;
@@ -220,8 +229,8 @@ EdgeRecordDesc_New(PyObject *keys, PyObject *link_props_keys)
 
     o->index = index;
 
-    Py_INCREF(keys);
-    o->keys = keys;
+    Py_INCREF(names);
+    o->names = names;
 
     o->size = size;
 
@@ -259,7 +268,7 @@ EdgeRecordDesc_Lookup(PyObject *ob, PyObject *key, Py_ssize_t *pos)
     assert(res_long < d->size);
     *pos = res_long;
 
-    if (d->posbits[res_long] & POINTER_PROP_IS_LINKPROP) {
+    if (d->posbits[res_long] & EDGE_POINTER_IS_LINKPROP) {
         return L_LINKPROP;
     }
     else {
@@ -273,7 +282,7 @@ EdgeRecordDesc_PointerName(PyObject *ob, Py_ssize_t pos)
 {
     assert(EdgeRecordDesc_Check(ob));
     EdgeRecordDescObject *o = (EdgeRecordDescObject *)ob;
-    PyObject * key = PyTuple_GetItem(o->keys, pos);
+    PyObject * key = PyTuple_GetItem(o->names, pos);
     if (key == NULL) {
         return NULL;
     }
@@ -291,7 +300,19 @@ EdgeRecordDesc_PointerIsLinkProp(PyObject *ob, Py_ssize_t pos)
         PyErr_SetNone(PyExc_IndexError);
         return -1;
     }
-    return o->posbits[pos] & POINTER_PROP_IS_LINKPROP;
+    return o->posbits[pos] & EDGE_POINTER_IS_LINKPROP;
+}
+
+int
+EdgeRecordDesc_PointerIsImplicit(PyObject *ob, Py_ssize_t pos)
+{
+    assert(EdgeRecordDesc_Check(ob));
+    EdgeRecordDescObject *o = (EdgeRecordDescObject *)ob;
+    if (pos < 0 || pos >= o->size) {
+        PyErr_SetNone(PyExc_IndexError);
+        return -1;
+    }
+    return o->posbits[pos] & EDGE_POINTER_IS_IMPLICIT;
 }
 
 Py_ssize_t

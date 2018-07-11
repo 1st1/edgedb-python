@@ -17,20 +17,17 @@
 #
 
 
-cdef class PreparedStatementState:
+cdef class BaseCodec:
+
     cdef:
-        readonly str name
-        readonly str query
-        readonly bint closed
-        readonly bytes args_desc
-        readonly bytes row_desc
+        bytes   tid
+        str     name
 
-        FastReadBuffer buffer
+    cdef encode(self, WriteBuffer buf, object obj)
+    cdef decode(self, FastReadBuffer buf)
 
-        CodecsRegistry _c
-        BaseCodec _dec
 
-    cdef _set_args_desc(self, bytes data)
-    cdef _set_row_desc(self, bytes data)
-
-    cdef _decode_row(self, const char* cbuf, ssize_t buf_len)
+@cython.final
+cdef class EdegDBCodecContext(CodecContext):
+    cdef:
+        object _codec

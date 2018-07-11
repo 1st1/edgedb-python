@@ -25,7 +25,10 @@
 #include "Python.h"
 
 
-#define EDGE_MAX_TUPLE_SIZE (0x4000 - 1)
+#define EDGE_MAX_TUPLE_SIZE         (0x4000 - 1)
+
+#define EDGE_POINTER_IS_IMPLICIT    (1 << 0)
+#define EDGE_POINTER_IS_LINKPROP    (1 << 1)
 
 
 /* === edgedb.RecordDesc ==================================== */
@@ -37,7 +40,7 @@ extern PyTypeObject EdgeRecordDesc_Type;
 typedef struct {
     PyObject_HEAD
     PyObject *index;
-    PyObject *keys;
+    PyObject *names;
     uint8_t *posbits;
     Py_ssize_t size;
 } EdgeRecordDescObject;
@@ -48,6 +51,7 @@ PyObject * EdgeRecordDesc_InitType(void);
 PyObject * EdgeRecordDesc_New(PyObject *, PyObject *);
 PyObject * EdgeRecordDesc_PointerName(PyObject *, Py_ssize_t);
 int EdgeRecordDesc_PointerIsLinkProp(PyObject *, Py_ssize_t);
+int EdgeRecordDesc_PointerIsImplicit(PyObject *, Py_ssize_t);
 Py_ssize_t EdgeRecordDesc_GetSize(PyObject *);
 edge_attr_lookup_t EdgeRecordDesc_Lookup(PyObject *, PyObject *, Py_ssize_t *);
 

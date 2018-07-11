@@ -17,20 +17,13 @@
 #
 
 
-cdef class PreparedStatementState:
+@cython.final
+cdef class ScalarCodec(BaseCodec):
+
     cdef:
-        readonly str name
-        readonly str query
-        readonly bint closed
-        readonly bytes args_desc
-        readonly bytes row_desc
+        encode_func     c_encoder
+        decode_func     c_decoder
 
-        FastReadBuffer buffer
-
-        CodecsRegistry _c
-        BaseCodec _dec
-
-    cdef _set_args_desc(self, bytes data)
-    cdef _set_row_desc(self, bytes data)
-
-    cdef _decode_row(self, const char* cbuf, ssize_t buf_len)
+    @staticmethod
+    cdef BaseCodec new(bytes tid, str name,
+                       encode_func encoder, decode_func decoder)

@@ -17,145 +17,14 @@
 #
 
 
-import codecs
 import uuid
 
 
-@cython.final
-cdef class Codec:
-
-    def __cinit__(self):
-        self.c_encoder = NULL
-        self.c_decoder = NULL
-        self.encoder = NULL
-        self.decoder = NULL
-
-    def __init__(self, bytes tid, str name, CodecType type):
-        self.tid = tid
-        self.name = name
-        self.type = type
-
-    cdef encode_namedtuple(self, CodecContext ctx, WriteBuffer buf, object obj):
-        raise NotImplementedError
-
-    cdef decode_namedtuple(self, CodecContext ctx, FastReadBuffer buf):
-        cdef:
-            object result
-            ssize_t elem_count
-            ssize_t i
-            int32_t elem_len
-            uint32_t elem_typ
-            Codec elem_codec
-            FastReadBuffer elem_buf = FastReadBuffer.new()
-
-        elem_count = <ssize_t><uint32_t>hton.unpack_int32(buf.read(4))
-
-        if elem_count != len(self.fields_codecs):
-            raise RuntimeError(
-                f'cannot decode namedtuple: expected {len(self.fields_codecs)}'
-                f'elements, got {elem_count}')
-
-        result = datatypes.EdgeNamedTuple_New(self.desc)
-
-        for i in range(elem_count):
-            elem_typ = <uint32_t>hton.unpack_int32(buf.read(4))
-            elem_len = hton.unpack_int32(buf.read(4))
-
-            if elem_len == -1:
-                elem = None
-            else:
-                elem_codec = <Codec>self.fields_codecs[i]
-                elem = elem_codec.decode(elem_buf.slice_from(buf, elem_len))
-
-            datatypes.EdgeNamedTuple_SetItem(result, i, elem)
-
-        return result
-
-    cdef encode_tuple(self, CodecContext ctx, WriteBuffer buf, object obj):
-        raise NotImplementedError
-
-    cdef decode_tuple(self, CodecContext ctx, FastReadBuffer buf):
-        cdef:
-            object result
-            ssize_t elem_count
-            ssize_t i
-            int32_t elem_len
-            uint32_t elem_typ
-            Codec elem_codec
-            FastReadBuffer elem_buf = FastReadBuffer.new()
-
-        elem_count = <ssize_t><uint32_t>hton.unpack_int32(buf.read(4))
-
-        if elem_count != len(self.fields_codecs):
-            raise RuntimeError(
-                f'cannot decode namedtuple: expected {len(self.fields_codecs)}'
-                f'elements, got {elem_count}')
-
-        result = datatypes.EdgeTuple_New(elem_count)
-
-        for i in range(elem_count):
-            elem_typ = <uint32_t>hton.unpack_int32(buf.read(4))
-            elem_len = hton.unpack_int32(buf.read(4))
-
-            if elem_len == -1:
-                elem = None
-            else:
-                elem_codec = <Codec>self.fields_codecs[i]
-                elem = elem_codec.decode(elem_buf.slice_from(buf, elem_len))
-
-            datatypes.EdgeTuple_SetItem(result, i, elem)
-
-        return result
-
-    cdef encode_scalar(self, CodecContext ctx, WriteBuffer buf, object obj):
-        self.c_encoder(ctx, buf, obj)
-
-    cdef decode_scalar(self, CodecContext ctx, FastReadBuffer buf):
-        return self.c_decoder(ctx, buf)
-
-    cdef encode(self, WriteBuffer buf, object obj):
-        self.encoder(self, DEFAULT_CODEC_CONTEXT, buf, obj)
-
-    cdef decode(self, FastReadBuffer buf):
-        return self.decoder(self, DEFAULT_CODEC_CONTEXT, buf)
-
-    @staticmethod
-    cdef Codec new_base_scalar_codec(
-            bytes tid, str name,
-            encode_func encoder, decode_func decoder):
-
-        cdef Codec codec
-
-        codec = Codec(tid, name, CODEC_C_SCALAR)
-        codec.c_encoder = encoder
-        codec.c_decoder = decoder
-        codec.encoder = <codec_encode_func>&Codec.encode_scalar
-        codec.decoder = <codec_decode_func>&Codec.decode_scalar
-        return codec
-
-    @staticmethod
-    cdef Codec new_tuple_codec(bytes tid, tuple fields_codecs):
-        cdef Codec codec
-
-        codec = Codec(tid, 'tuple', CODEC_NAMEDTUPLE)
-        codec.fields_codecs = fields_codecs
-        codec.encoder = <codec_encode_func>&Codec.encode_tuple
-        codec.decoder = <codec_decode_func>&Codec.decode_tuple
-        return codec
-
-    @staticmethod
-    cdef Codec new_named_tuple_codec(
-            bytes tid, tuple fields_names, tuple fields_codecs):
-
-        cdef Codec codec
-
-        codec = Codec(tid, 'namedtuple', CODEC_NAMEDTUPLE)
-        codec.fields_names = fields_names
-        codec.fields_codecs = fields_codecs
-        codec.desc = datatypes.EdgeRecordDesc_New(fields_names, <object>NULL)
-        codec.encoder = <codec_encode_func>&Codec.encode_namedtuple
-        codec.decoder = <codec_decode_func>&Codec.decode_namedtuple
-        return codec
+include "./base.pyx"
+include "./scalar.pyx"
+include "./tuple.pyx"
+include "./namedtuple.pyx"
+include "./object.pyx"
 
 
 cdef class CodecsRegistry:
@@ -163,7 +32,7 @@ cdef class CodecsRegistry:
     def __init__(self):
         self.codecs = {}
 
-    cdef Codec _build_decoder(self, FastReadBuffer spec, list codecs_list):
+    cdef BaseCodec _build_decoder(self, FastReadBuffer spec, list codecs_list):
         cdef:
             const char *t = spec.read(1)
             bytes tid = spec.read(16)[:16]
@@ -171,7 +40,7 @@ cdef class CodecsRegistry:
             uint16_t i
             uint16_t str_len
             uint16_t pos
-            Codec res
+            BaseCodec res
 
         res = self.codecs.get(tid)
         if res is not None:
@@ -183,25 +52,40 @@ cdef class CodecsRegistry:
 
         elif t[0] == 1:
             # shape
-            raise NotImplementedError
+            els = <uint16_t>hton.unpack_int16(spec.read(2))
+            codecs = cpython.PyTuple_New(els)
+            names = cpython.PyTuple_New(els)
+            flags = cpython.PyTuple_New(els)
+            for i in range(els):
+                flag = <uint8_t>spec.read(1)
+
+                str_len = <uint16_t>hton.unpack_int16(spec.read(2))
+                name = PyUnicode_FromStringAndSize(
+                    spec.read(str_len), str_len)
+                pos = <uint16_t>hton.unpack_int16(spec.read(2))
+
+                cpython.PyTuple_SetItem(names, i, name)
+                cpython.PyTuple_SetItem(codecs, i, codecs_list[pos])
+                cpython.PyTuple_SetItem(flags, i, flag)
+
+            return ObjectCodec.new(tid, names, flags, codecs)
 
         elif t[0] == 2:
             # base scalar
-            return <Codec>BASE_SCALAR_CODECS[tid]
+            return <BaseCodec>BASE_SCALAR_CODECS[tid]
 
         elif t[0] == 3:
             # scalar
             raise NotImplementedError
 
         elif t[0] == 4:
-            # tuple
             els = <uint16_t>hton.unpack_int16(spec.read(2))
             codecs = cpython.PyTuple_New(els)
             for i in range(els):
                 pos = <uint16_t>hton.unpack_int16(spec.read(2))
                 cpython.PyTuple_SetItem(codecs, i, codecs_list[pos])
 
-            return Codec.new_tuple_codec(tid, codecs)
+            return TupleCodec.new(tid, codecs)
 
         elif t[0] == 5:
             # named tuple
@@ -217,7 +101,7 @@ cdef class CodecsRegistry:
                 cpython.PyTuple_SetItem(names, i, name)
                 cpython.PyTuple_SetItem(codecs, i, codecs_list[pos])
 
-            return Codec.new_named_tuple_codec(tid, names, codecs)
+            return NamedTupleCodec.new(tid, names, codecs)
 
         elif t[0] == 6:
             # array
@@ -225,11 +109,10 @@ cdef class CodecsRegistry:
 
         raise NotImplementedError
 
-    cdef Codec build_decoder(self, bytes spec):
-        print('>>>>', spec, '<<<<')
+    cdef BaseCodec build_decoder(self, bytes spec):
         cdef:
             FastReadBuffer buf
-            Codec res
+            BaseCodec res
             list codecs_list
 
         buf = FastReadBuffer.new()
@@ -248,34 +131,18 @@ cdef class CodecsRegistry:
 cdef dict BASE_SCALAR_CODECS = {}
 
 
-@cython.final
-cdef class EdegDBCodecContext(CodecContext):
-
-    def __cinit__(self):
-        self._codec = codecs.lookup('utf-8')
-
-    cpdef get_text_codec(self):
-        return self._codec
-
-    cdef is_encoding_utf8(self):
-        return True
-
-
-cdef EdegDBCodecContext DEFAULT_CODEC_CONTEXT = EdegDBCodecContext()
-
-
 cdef register_base_scalar_codec(
         str name, str id, encode_func encoder, decode_func decoder):
 
     cdef:
         bytes tid
-        Codec codec
+        BaseCodec codec
 
     tid = uuid.UUID(id).bytes
     if tid in BASE_SCALAR_CODECS:
         raise RuntimeError(f'base scalar codec for {id} is already registered')
 
-    codec = Codec.new_base_scalar_codec(tid, name, encoder, decoder)
+    codec = ScalarCodec.new(tid, name, encoder, decoder)
     BASE_SCALAR_CODECS[tid] = codec
 
 

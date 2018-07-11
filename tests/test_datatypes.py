@@ -2,31 +2,36 @@ import unittest
 
 
 import edgedb
-from edgedb.protocol.protocol import RecordDescriptor, create_object_factory
+from edgedb.protocol import protocol as private
 
 
 class TestRecordDesc(unittest.TestCase):
 
     def test_recorddesc_1(self):
         with self.assertRaisesRegex(TypeError, 'one to two positional'):
-            RecordDescriptor()
+            private._RecordDescriptor()
 
         with self.assertRaisesRegex(TypeError, 'one to two positional'):
-            RecordDescriptor(t=1)
+            private._RecordDescriptor(t=1)
 
         with self.assertRaisesRegex(TypeError, 'requires a tuple'):
-            RecordDescriptor(1)
+            private._RecordDescriptor(1)
 
-        with self.assertRaisesRegex(TypeError, 'requires a frozenset'):
-            RecordDescriptor(('a',), 1)
+        with self.assertRaisesRegex(TypeError, 'requires a tuple'):
+            private._RecordDescriptor(('a',), 1)
 
-        RecordDescriptor(('a', 'b'))
+        with self.assertRaisesRegex(TypeError,
+                                    'the same length as the names tuple'):
+            private._RecordDescriptor(('a',), ())
+
+        private._RecordDescriptor(('a', 'b'))
 
         with self.assertRaisesRegex(ValueError, f'more than {0x4000-1}'):
-            RecordDescriptor(('a',) * 20000)
+            private._RecordDescriptor(('a',) * 20000)
 
     def test_recorddesc_2(self):
-        rd = RecordDescriptor(('a', 'b'), frozenset({'a'}))
+        rd = private._RecordDescriptor(
+            ('a', 'b'), (private._EDGE_POINTER_IS_LINKPROP, 0))
 
         self.assertEqual(rd.get_pos('a'), 0)
         self.assertEqual(rd.get_pos('b'), 1)
@@ -90,6 +95,9 @@ class TestNamedTuple(unittest.TestCase):
             edgedb.NamedTuple()
 
     def test_namedtuple_2(self):
+        t = edgedb.NamedTuple(a=1)
+        self.assertEqual(repr(t), "(a := 1)")
+
         t = edgedb.NamedTuple(a=1, b='a')
 
         self.assertEqual(repr(t), "(a := 1, b := 'a')")
@@ -128,7 +136,7 @@ class TestNamedTuple(unittest.TestCase):
 class TestObject(unittest.TestCase):
 
     def test_object_1(self):
-        f = create_object_factory(('a', 'lb', 'c'), frozenset(['lb']))
+        f = private._create_object_factory(('a', 'lb', 'c'), frozenset(['lb']))
         o = f(1, 2, 3)
 
         self.assertEqual(repr(o), 'Object{a := 1, @lb := 2, c := 3}')
@@ -149,7 +157,7 @@ class TestObject(unittest.TestCase):
             o[0]
 
     def test_object_2(self):
-        f = create_object_factory(('a', 'lb', 'c'), frozenset(['lb']))
+        f = private._create_object_factory(('a', 'lb', 'c'), frozenset(['lb']))
         o = f(1, 2, 3)
 
         self.assertEqual(hash(o), hash(f(1, 2, 3)))
@@ -157,7 +165,7 @@ class TestObject(unittest.TestCase):
         self.assertNotEqual(hash(o), hash((1, 2, 3)))
 
     def test_object_3(self):
-        f = create_object_factory(('a', 'c'), frozenset())
+        f = private._create_object_factory(('a', 'c'), frozenset())
         o = f(1, [])
 
         o.c.append(o)

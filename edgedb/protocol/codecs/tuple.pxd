@@ -17,20 +17,11 @@
 #
 
 
-cdef class PreparedStatementState:
+@cython.final
+cdef class TupleCodec(BaseCodec):
+
     cdef:
-        readonly str name
-        readonly str query
-        readonly bint closed
-        readonly bytes args_desc
-        readonly bytes row_desc
+        tuple     fields_codecs
 
-        FastReadBuffer buffer
-
-        CodecsRegistry _c
-        BaseCodec _dec
-
-    cdef _set_args_desc(self, bytes data)
-    cdef _set_row_desc(self, bytes data)
-
-    cdef _decode_row(self, const char* cbuf, ssize_t buf_len)
+    @staticmethod
+    cdef BaseCodec new(bytes tid, tuple fields_codecs)

@@ -17,64 +17,11 @@
 #
 
 
-cdef enum CodecType:
-
-    CODEC_UNDEFINED    = 0
-    CODEC_C_SCALAR     = 1
-    CODEC_TUPLE        = 2
-    CODEC_NAMEDTUPLE   = 3
-
-
-ctypedef object (*codec_encode_func)(Codec codec,
-                                     CodecContext ctx,
-                                     WriteBuffer buf,
-                                     object obj)
-
-ctypedef object (*codec_decode_func)(Codec codec,
-                                     CodecContext ctx,
-                                     FastReadBuffer buf)
-
-
-cdef class Codec:
-
-    cdef:
-        bytes           tid
-        str             name
-        CodecType       type
-
-        tuple           fields_names
-        tuple           fields_codecs
-        object          desc
-
-        encode_func     c_encoder
-        decode_func     c_decoder
-
-        codec_encode_func encoder
-        codec_decode_func decoder
-
-    cdef encode_namedtuple(self, CodecContext ctx, WriteBuffer buf, object obj)
-    cdef decode_namedtuple(self, CodecContext ctx, FastReadBuffer buf)
-
-    cdef encode_tuple(self, CodecContext ctx, WriteBuffer buf, object obj)
-    cdef decode_tuple(self, CodecContext ctx, FastReadBuffer buf)
-
-    cdef encode_scalar(self, CodecContext ctx, WriteBuffer buf, object obj)
-    cdef decode_scalar(self, CodecContext ctx, FastReadBuffer buf)
-
-    cdef inline encode(self, WriteBuffer buf, object obj)
-    cdef inline decode(self, FastReadBuffer buf)
-
-    @staticmethod
-    cdef Codec new_base_scalar_codec(
-        bytes tid, str name,
-        encode_func encoder, decode_func decoder)
-
-    @staticmethod
-    cdef Codec new_tuple_codec(bytes tid, tuple fields_codecs)
-
-    @staticmethod
-    cdef Codec new_named_tuple_codec(
-        bytes tid, tuple fields_names, tuple fields_codecs)
+include "./base.pxd"
+include "./scalar.pxd"
+include "./tuple.pxd"
+include "./namedtuple.pxd"
+include "./object.pxd"
 
 
 cdef class CodecsRegistry:
@@ -82,10 +29,5 @@ cdef class CodecsRegistry:
     cdef:
         dict codecs
 
-    cdef Codec _build_decoder(self, FastReadBuffer spec, list codecs_list)
-    cdef Codec build_decoder(self, bytes spec)
-
-
-cdef class EdegDBCodecContext(CodecContext):
-    cdef:
-        object _codec
+    cdef BaseCodec _build_decoder(self, FastReadBuffer spec, list codecs_list)
+    cdef BaseCodec build_decoder(self, bytes spec)

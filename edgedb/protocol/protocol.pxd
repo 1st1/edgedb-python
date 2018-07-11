@@ -19,6 +19,10 @@
 
 # cython: language_level=3
 
+
+cimport cython
+
+
 include "./pgbase/pgbase.pxd"
 include "./codecs/codecs.pxd"
 
