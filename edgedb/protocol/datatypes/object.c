@@ -20,8 +20,8 @@ EDGE_SETUP_FREELIST(
     (((EdgeObject *)(op))->ob_item[i] = v)
 
 
-EdgeObject *
-EdgeObject_New(EdgeRecordDescObject *desc)
+PyObject *
+EdgeObject_New(PyObject *desc)
 {
     assert(init_type_called);
 
@@ -30,7 +30,7 @@ EdgeObject_New(EdgeRecordDescObject *desc)
         return NULL;
     }
 
-    Py_ssize_t size = desc->size;
+    Py_ssize_t size = EdgeRecordDesc_GetSize(desc);
 
     EdgeObject *o = NULL;
     EDGE_NEW_WITH_FREELIST(EDGE_OBJECT, EdgeObject,
@@ -45,14 +45,15 @@ EdgeObject_New(EdgeRecordDescObject *desc)
     o->cached_hash = -1;
 
     PyObject_GC_Track(o);
-    return o;
+    return (PyObject *)o;
 }
 
 
 int
-EdgeObject_SetItem(EdgeObject *o, Py_ssize_t i, PyObject *el)
+EdgeObject_SetItem(PyObject *ob, Py_ssize_t i, PyObject *el)
 {
     assert(EdgeObject_Check(o));
+    EdgeObject *o = (EdgeObject *)ob;
     assert(i >= 0);
     assert(i < Py_SIZE(o));
     Py_INCREF(el);
@@ -103,7 +104,8 @@ static PyObject *
 object_getattr(EdgeObject *o, PyObject *name)
 {
     Py_ssize_t pos;
-    edge_attr_lookup_t ret = EdgeRecordDesc_Lookup(o->desc, name, &pos);
+    edge_attr_lookup_t ret = EdgeRecordDesc_Lookup(
+        (PyObject *)o->desc, name, &pos);
     switch (ret) {
         case L_ERROR:
             return NULL;

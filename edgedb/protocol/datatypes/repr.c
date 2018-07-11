@@ -61,11 +61,11 @@ error:
 
 int
 _EdgeGeneric_RenderItems(_PyUnicodeWriter *writer,
-                         PyObject *host, EdgeRecordDescObject *desc,
+                         PyObject *host, PyObject *desc,
                          PyObject **items, Py_ssize_t len,
                          int include_link_props)
 {
-    assert(desc->size == len);
+    assert(EdgeRecordDesc_GetSize(desc) == len);
 
     PyObject *item_repr = NULL;
     PyObject *item_name = NULL;

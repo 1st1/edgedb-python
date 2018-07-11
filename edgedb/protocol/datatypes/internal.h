@@ -24,7 +24,7 @@ int _EdgeGeneric_RenderValues(
     _PyUnicodeWriter *, PyObject *, PyObject **, Py_ssize_t);
 
 int _EdgeGeneric_RenderItems(_PyUnicodeWriter *,
-                             PyObject *, EdgeRecordDescObject *,
+                             PyObject *, PyObject *,
                              PyObject **, Py_ssize_t, int);
 
 

@@ -20,7 +20,7 @@ EDGE_SETUP_FREELIST(
     (((EdgeArrayObject *)(op))->ob_item[i] = v)
 
 
-EdgeArrayObject *
+PyObject *
 EdgeArray_New(Py_ssize_t size)
 {
     assert(init_type_called);
@@ -36,14 +36,15 @@ EdgeArray_New(Py_ssize_t size)
     obj->cached_hash = -1;
 
     PyObject_GC_Track(obj);
-    return obj;
+    return (PyObject *)obj;
 }
 
 
 int
-EdgeArray_SetItem(EdgeArrayObject *o, Py_ssize_t i, PyObject *el)
+EdgeArray_SetItem(PyObject *ob, Py_ssize_t i, PyObject *el)
 {
-    assert(EdgeArray_Check(o));
+    assert(EdgeArray_Check(ob));
+    EdgeArrayObject *o = (EdgeArrayObject *)ob;
     assert(i >= 0);
     assert(i < Py_SIZE(o));
     Py_INCREF(el);
@@ -104,8 +105,7 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
     }
 
     if (iterable == NULL) {
-        o = EdgeArray_New(0);
-        return (PyObject *)o;
+        return EdgeArray_New(0);
     }
 
     PyObject *tup = PySequence_Tuple(iterable);
@@ -113,7 +113,7 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    o = EdgeArray_New(Py_SIZE(tup));
+    o = (EdgeArrayObject *)EdgeArray_New(Py_SIZE(tup));
     if (o == NULL) {
         Py_DECREF(tup);
         return NULL;

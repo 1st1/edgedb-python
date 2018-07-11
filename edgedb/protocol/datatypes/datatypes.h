@@ -26,11 +26,11 @@ typedef struct {
 typedef enum {L_ERROR, L_NOT_FOUND, L_LINKPROP, L_ATTR} edge_attr_lookup_t;
 
 PyObject * EdgeRecordDesc_InitType(void);
-EdgeRecordDescObject * EdgeRecordDesc_New(PyObject *, PyObject *);
-PyObject * EdgeRecordDesc_PointerName(EdgeRecordDescObject *, Py_ssize_t);
-int EdgeRecordDesc_PointerIsLinkProp(EdgeRecordDescObject *, Py_ssize_t);
-edge_attr_lookup_t EdgeRecordDesc_Lookup(
-    EdgeRecordDescObject *, PyObject *, Py_ssize_t *);
+PyObject * EdgeRecordDesc_New(PyObject *, PyObject *);
+PyObject * EdgeRecordDesc_PointerName(PyObject *, Py_ssize_t);
+int EdgeRecordDesc_PointerIsLinkProp(PyObject *, Py_ssize_t);
+Py_ssize_t EdgeRecordDesc_GetSize(PyObject *);
+edge_attr_lookup_t EdgeRecordDesc_Lookup(PyObject *, PyObject *, Py_ssize_t *);
 
 
 /* === edgedb.Tuple ========================================= */
@@ -48,8 +48,8 @@ typedef struct {
 } EdgeTupleObject;
 
 PyObject * EdgeTuple_InitType(void);
-EdgeTupleObject * EdgeTuple_New(Py_ssize_t size);
-int EdgeTuple_SetItem(EdgeTupleObject *, Py_ssize_t, PyObject *);
+PyObject * EdgeTuple_New(Py_ssize_t size);
+int EdgeTuple_SetItem(PyObject *, Py_ssize_t, PyObject *);
 
 
 
@@ -64,13 +64,13 @@ extern PyTypeObject EdgeNamedTuple_Type;
 
 typedef struct {
     PyObject_VAR_HEAD
-    EdgeRecordDescObject *desc;
+    PyObject *desc;
     PyObject *ob_item[1];
 } EdgeNamedTupleObject;
 
 PyObject * EdgeNamedTuple_InitType(void);
-EdgeNamedTupleObject * EdgeNamedTuple_New(EdgeRecordDescObject *);
-int EdgeNamedTuple_SetItem(EdgeNamedTupleObject *, Py_ssize_t, PyObject *);
+PyObject * EdgeNamedTuple_New(PyObject *);
+int EdgeNamedTuple_SetItem(PyObject *, Py_ssize_t, PyObject *);
 
 
 /* === edgedb.Object ======================================== */
@@ -84,14 +84,14 @@ extern PyTypeObject EdgeObject_Type;
 
 typedef struct {
     PyObject_VAR_HEAD
-    EdgeRecordDescObject *desc;
+    PyObject *desc;
     Py_hash_t cached_hash;
     PyObject *ob_item[1];
 } EdgeObject;
 
 PyObject * EdgeObject_InitType(void);
-EdgeObject * EdgeObject_New(EdgeRecordDescObject *);
-int EdgeObject_SetItem(EdgeObject *, Py_ssize_t, PyObject *);
+PyObject * EdgeObject_New(PyObject *);
+int EdgeObject_SetItem(PyObject *, Py_ssize_t, PyObject *);
 
 
 /* === edgedb.Set =========================================== */
@@ -107,8 +107,8 @@ typedef struct {
 } EdgeSetObject;
 
 PyObject * EdgeSet_InitType(void);
-EdgeSetObject * EdgeSet_New(Py_ssize_t);
-int EdgeSet_SetItem(EdgeSetObject *, Py_ssize_t, PyObject *);
+PyObject * EdgeSet_New(Py_ssize_t);
+int EdgeSet_SetItem(PyObject *, Py_ssize_t, PyObject *);
 
 
 /* === edgedb.Array ========================================= */
@@ -127,8 +127,8 @@ typedef struct {
 } EdgeArrayObject;
 
 PyObject * EdgeArray_InitType(void);
-EdgeArrayObject * EdgeArray_New(Py_ssize_t size);
-int EdgeArray_SetItem(EdgeArrayObject *, Py_ssize_t, PyObject *);
+PyObject * EdgeArray_New(Py_ssize_t size);
+int EdgeArray_SetItem(PyObject *, Py_ssize_t, PyObject *);
 
 
 #endif

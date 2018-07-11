@@ -6,7 +6,7 @@ static int init_type_called = 0;
 static Py_hash_t base_hash = -1;
 
 
-EdgeSetObject *
+PyObject *
 EdgeSet_New(Py_ssize_t size)
 {
     assert(init_type_called);
@@ -26,14 +26,15 @@ EdgeSet_New(Py_ssize_t size)
     o->cached_hash = -1;
 
     PyObject_GC_Track(o);
-    return o;
+    return (PyObject *)o;
 }
 
 
 int
-EdgeSet_SetItem(EdgeSetObject *o, Py_ssize_t pos, PyObject *el)
+EdgeSet_SetItem(PyObject *ob, Py_ssize_t pos, PyObject *el)
 {
-    assert(EdgeSet_Check(o));
+    assert(EdgeSet_Check(ob));
+    EdgeSetObject *o = (EdgeSetObject *)ob;
     return PyList_SetItem(o->els, pos, el);
 }
 
@@ -51,7 +52,7 @@ set_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
-    EdgeSetObject *o = EdgeSet_New(0);
+    EdgeSetObject *o = (EdgeSetObject *)EdgeSet_New(0);
     if (o == NULL) {
         return NULL;
     }
