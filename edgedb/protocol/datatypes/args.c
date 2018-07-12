@@ -30,7 +30,7 @@ _Edge_NoKeywords(const char *funcname, PyObject *kwargs)
         PyErr_BadInternalCall();
         return 0;
     }
-    if (PyDict_GET_SIZE(kwargs) == 0) {
+    if (PyDict_Size(kwargs) == 0) {
         return 1;
     }
 

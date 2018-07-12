@@ -27,8 +27,8 @@
 #define EDGE_SETUP_FREELIST(NAME, TYPEDEF, max_save_size, max_free_list)    \
     static const Py_ssize_t _ ## NAME ## _FL_MAX_SAVE_SIZE = max_save_size; \
     static const Py_ssize_t _ ## NAME ## _FL_MAX_FREE_LIST = max_free_list; \
-    static TYPEDEF * _ ## NAME ## _FL[_ ## NAME ## _FL_MAX_SAVE_SIZE];      \
-    static int _ ## NAME ## _FL_NUM_FREE[_ ## NAME ## _FL_MAX_SAVE_SIZE];
+    static TYPEDEF * _ ## NAME ## _FL[max_save_size];                       \
+    static int _ ## NAME ## _FL_NUM_FREE[max_save_size];
 
 
 /* Must call PyObject_GC_Track *after* this macro */
