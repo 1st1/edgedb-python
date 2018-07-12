@@ -64,4 +64,4 @@ cdef class PreparedStatementState:
             rbuf.buf = cbuf + 6
             rbuf.len = buf_len - 6
 
-        print(self._dec.decode(rbuf))
+        return self._dec.decode(rbuf)

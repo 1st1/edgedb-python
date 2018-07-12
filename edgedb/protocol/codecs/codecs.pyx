@@ -25,6 +25,7 @@ include "./scalar.pyx"
 include "./tuple.pyx"
 include "./namedtuple.pyx"
 include "./object.pyx"
+include "./array.pyx"
 
 
 cdef class CodecsRegistry:
@@ -41,6 +42,7 @@ cdef class CodecsRegistry:
             uint16_t str_len
             uint16_t pos
             BaseCodec res
+            BaseCodec sub_codec
 
         res = self.codecs.get(tid)
         if res is not None:
@@ -57,15 +59,21 @@ cdef class CodecsRegistry:
             names = cpython.PyTuple_New(els)
             flags = cpython.PyTuple_New(els)
             for i in range(els):
-                flag = <uint8_t>spec.read(1)
+                flag = <uint8_t>spec.read(1)[0]
 
                 str_len = <uint16_t>hton.unpack_int16(spec.read(2))
                 name = PyUnicode_FromStringAndSize(
                     spec.read(str_len), str_len)
                 pos = <uint16_t>hton.unpack_int16(spec.read(2))
 
+                cpython.Py_INCREF(name)
                 cpython.PyTuple_SetItem(names, i, name)
-                cpython.PyTuple_SetItem(codecs, i, codecs_list[pos])
+
+                sub_codec = codecs_list[pos]
+                cpython.Py_INCREF(sub_codec)
+                cpython.PyTuple_SetItem(codecs, i, sub_codec)
+
+                cpython.Py_INCREF(flag)
                 cpython.PyTuple_SetItem(flags, i, flag)
 
             return ObjectCodec.new(tid, names, flags, codecs)
@@ -76,14 +84,18 @@ cdef class CodecsRegistry:
 
         elif t[0] == 3:
             # scalar
-            raise NotImplementedError
+            pos = <uint16_t>hton.unpack_int16(spec.read(2))
+            return <BaseCodec>codecs_list[pos]
 
         elif t[0] == 4:
             els = <uint16_t>hton.unpack_int16(spec.read(2))
             codecs = cpython.PyTuple_New(els)
             for i in range(els):
                 pos = <uint16_t>hton.unpack_int16(spec.read(2))
-                cpython.PyTuple_SetItem(codecs, i, codecs_list[pos])
+
+                sub_codec = codecs_list[pos]
+                cpython.Py_INCREF(sub_codec)
+                cpython.PyTuple_SetItem(codecs, i, sub_codec)
 
             return TupleCodec.new(tid, codecs)
 
@@ -98,14 +110,19 @@ cdef class CodecsRegistry:
                     spec.read(str_len), str_len)
                 pos = <uint16_t>hton.unpack_int16(spec.read(2))
 
+                cpython.Py_INCREF(name)
                 cpython.PyTuple_SetItem(names, i, name)
-                cpython.PyTuple_SetItem(codecs, i, codecs_list[pos])
+
+                sub_codec = codecs_list[pos]
+                cpython.Py_INCREF(sub_codec)
+                cpython.PyTuple_SetItem(codecs, i, sub_codec)
 
             return NamedTupleCodec.new(tid, names, codecs)
 
         elif t[0] == 6:
             # array
-            raise NotImplementedError
+            pos = <uint16_t>hton.unpack_int16(spec.read(2))
+            sub_codec = <BaseCodec>codecs_list[pos]
 
         raise NotImplementedError
 

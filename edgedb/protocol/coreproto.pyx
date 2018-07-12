@@ -188,10 +188,15 @@ cdef class CoreProtocol:
         if mtype == b'D':
             self._parse_data_msgs()
 
+        elif mtype == b'Z':
+            # ReadyForQuery
+            self._parse_msg_ready_for_query()
+            self._push_result()
+
     cdef _parse_data_msgs(self):
         cdef:
             ReadBuffer buf = self.buffer
-            list rows
+            object rows
             decode_row_method decoder = <decode_row_method>self._decode_row
 
             const char* cbuf
@@ -212,9 +217,9 @@ cdef class CoreProtocol:
                     return
 
         if PG_DEBUG:
-            if type(self.result) is not list:
+            if not datatypes.EdgeSet_Check(self.result):
                 raise RuntimeError(
-                    '_parse_data_msgs: result is not a list, but {!r}'.
+                    '_parse_data_msgs: result is not an edgedb.Set, but {!r}'.
                     format(self.result))
 
         rows = self.result
@@ -226,7 +231,7 @@ cdef class CoreProtocol:
                 mem = buf.consume_message()
                 row = decoder(self, mem.buf, mem.length)
 
-            cpython.PyList_Append(rows, row)
+            datatypes.EdgeSet_AppendItem(rows, row)
 
             if not buf.has_message() or buf.get_message_type() != b'D':
                 self._skip_discard = True
@@ -427,7 +432,7 @@ cdef class CoreProtocol:
 
         self._ensure_connected()
         self._set_state(PROTOCOL_BIND_EXECUTE)
-        self.result = []
+        self.result = datatypes.EdgeSet_New(0)
 
         packet = WriteBuffer.new()
 
@@ -438,7 +443,6 @@ cdef class CoreProtocol:
 
         packet.write_bytes(SYNC_MESSAGE)
         self._write(packet)
-        print('send BIND EXECUTE')
 
     cdef _terminate(self):
         cdef WriteBuffer buf

@@ -18,11 +18,10 @@
 
 
 @cython.final
-cdef class ObjectCodec(BaseCodec):
+cdef class ArrayCodec(BaseCodec):
 
     def __cinit__(self):
-        self.descriptor = None
-        self.fields_codecs = ()
+        self.sub_codec = <object>NULL
 
     cdef encode(self, WriteBuffer buf, object obj):
         raise NotImplementedError
@@ -43,7 +42,7 @@ cdef class ObjectCodec(BaseCodec):
                 f'cannot decode Tuple: expected {len(self.fields_codecs)} '
                 f'elements, got {elem_count}')
 
-        result = datatypes.EdgeObject_New(self.descriptor)
+        result = datatypes.EdgeTuple_New(elem_count)
 
         for i in range(elem_count):
             buf.read(4)  # ignore element type oid
@@ -55,20 +54,19 @@ cdef class ObjectCodec(BaseCodec):
                 elem_codec = <BaseCodec>self.fields_codecs[i]
                 elem = elem_codec.decode(elem_buf.slice_from(buf, elem_len))
 
-            datatypes.EdgeObject_SetItem(result, i, elem)
+            datatypes.EdgeTuple_SetItem(result, i, elem)
 
         return result
 
     @staticmethod
-    cdef BaseCodec new(bytes tid, tuple names, tuple flags, tuple codecs):
+    cdef BaseCodec new(bytes tid, BaseCodec sub_codec):
         cdef:
-            ObjectCodec codec
+            ArrayCodec codec
 
-        codec = ObjectCodec.__new__(ObjectCodec)
+        codec = ArrayCodec.__new__(ArrayCodec)
 
         codec.tid = tid
-        codec.name = 'Object'
-        codec.descriptor = datatypes.EdgeRecordDesc_New(names, flags)
-        codec.fields_codecs = codecs
+        codec.name = 'Array'
+        codec.sub_codec = sub_codec
 
         return codec

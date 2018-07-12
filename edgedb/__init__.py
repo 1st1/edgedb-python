@@ -26,14 +26,13 @@ class Connection:
 
     async def fetch(self, query, *args):
         st = await self._protocol.prepare('', query)
-        await self._protocol.bind_execute(st, args)
-        print('FETCH', st)
+        return await self._protocol.bind_execute(st, args)
 
 
-async def connect(host, port):
+async def connect(host, port, dbname):
     loop = asyncio.get_event_loop()
 
-    con_param = _ConnectionParameters('yury', '', 'yury', False, 1, None)
+    con_param = _ConnectionParameters('yury', '', dbname, False, 1, None)
 
     connected_fut = loop.create_future()
     protocol_factory = lambda: Protocol((host, port), connected_fut,

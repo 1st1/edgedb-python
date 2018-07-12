@@ -197,8 +197,8 @@ EdgeRecordDesc_New(PyObject *names, PyObject *flags)
                 assert(PyErr_Occurred());
                 goto fail;
             }
-            if (flag_long > 128) {
-                PyErr_SetString(PyExc_OverflowError, "invalid name flag");
+            if ((unsigned long)flag_long > 128) {
+                PyErr_Format(PyExc_OverflowError, "invalid name flag %d", flag_long);
                 goto fail;
             }
             bits[i] = (uint8_t)flag_long;

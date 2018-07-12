@@ -33,7 +33,6 @@ cdef class NamedTupleCodec(BaseCodec):
             Py_ssize_t elem_count
             Py_ssize_t i
             int32_t elem_len
-            uint32_t elem_typ
             BaseCodec elem_codec
             FastReadBuffer elem_buf = FastReadBuffer.new()
 
@@ -47,7 +46,7 @@ cdef class NamedTupleCodec(BaseCodec):
         result = datatypes.EdgeNamedTuple_New(self.descriptor)
 
         for i in range(elem_count):
-            elem_typ = <uint32_t>hton.unpack_int32(buf.read(4))
+            buf.read(4)  # ignore element type oid
             elem_len = hton.unpack_int32(buf.read(4))
 
             if elem_len == -1:

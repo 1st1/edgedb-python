@@ -17,18 +17,11 @@
 #
 
 
-include "./base.pxd"
-include "./scalar.pxd"
-include "./tuple.pxd"
-include "./namedtuple.pxd"
-include "./object.pxd"
-include "./array.pxd"
-
-
-cdef class CodecsRegistry:
+@cython.final
+cdef class ArrayCodec(BaseCodec):
 
     cdef:
-        dict codecs
+        BaseCodec sub_codec
 
-    cdef BaseCodec _build_decoder(self, FastReadBuffer spec, list codecs_list)
-    cdef BaseCodec build_decoder(self, bytes spec)
+    @staticmethod
+    cdef BaseCodec new(bytes tid, BaseCodec sub_codec)

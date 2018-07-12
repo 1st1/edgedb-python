@@ -137,6 +137,9 @@ cdef class BaseProtocol(CoreProtocol):
         self._bind_execute(statement, bind_args)
         return await waiter
 
+    cdef _on_result__bind_execute(self, object waiter):
+        waiter.set_result(self.result)
+
     @cython.iterable_coroutine
     async def close(self, timeout):
         if self.closing:
@@ -321,6 +324,9 @@ cdef class BaseProtocol(CoreProtocol):
 
             elif self.state == PROTOCOL_PREPARE:
                 self._on_result__prepare(waiter)
+
+            elif self.state == PROTOCOL_BIND_EXECUTE:
+                self._on_result__bind_execute(waiter)
 
             else:
                 raise RuntimeError(

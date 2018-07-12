@@ -58,6 +58,15 @@ EdgeSet_SetItem(PyObject *ob, Py_ssize_t pos, PyObject *el)
 }
 
 
+int
+EdgeSet_AppendItem(PyObject *ob, PyObject *el)
+{
+    assert(EdgeSet_Check(ob));
+    EdgeSetObject *o = (EdgeSetObject *)ob;
+    return PyList_Append(o->els, el);
+}
+
+
 static PyObject *
 set_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {

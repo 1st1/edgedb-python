@@ -132,6 +132,7 @@ typedef struct {
 PyObject * EdgeSet_InitType(void);
 PyObject * EdgeSet_New(Py_ssize_t);
 int EdgeSet_SetItem(PyObject *, Py_ssize_t, PyObject *);
+int EdgeSet_AppendItem(PyObject *, PyObject *);
 
 
 /* === edgedb.Array ========================================= */

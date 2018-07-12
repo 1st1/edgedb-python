@@ -62,6 +62,7 @@ cdef class BaseProtocol(CoreProtocol):
 
     cdef _on_result__connect(self, object waiter)
     cdef _on_result__prepare(self, object waiter)
+    cdef _on_result__bind_execute(self, object waiter)
 
     cdef _handle_waiter_on_connection_lost(self, cause)
 
