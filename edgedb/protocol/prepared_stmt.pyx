@@ -38,6 +38,7 @@ cdef class PreparedStatementState:
     cdef _set_row_desc(self, bytes data):
         self.row_desc = data
         self._dec = self._c.build_decoder(data)
+        print(self._dec.dump())
 
     cdef _decode_row(self, const char* cbuf, ssize_t buf_len):
         cdef:

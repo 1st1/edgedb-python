@@ -17,19 +17,8 @@
 #
 
 
-cdef class BaseArrayCodec(BaseCodec):
-
-    cdef:
-        BaseCodec sub_codec
-
-    cdef _new_collection(self, Py_ssize_t size)
-
-    cdef _set_collection_item(self, object collection, Py_ssize_t i,
-                              object element)
-
-
 @cython.final
-cdef class ArrayCodec(BaseArrayCodec):
+cdef class SetCodec(BaseArrayCodec):
 
     @staticmethod
     cdef BaseCodec new(bytes tid, BaseCodec sub_codec)

@@ -40,7 +40,7 @@ cdef class ObjectCodec(BaseCodec):
 
         if elem_count != len(self.fields_codecs):
             raise RuntimeError(
-                f'cannot decode Tuple: expected {len(self.fields_codecs)} '
+                f'cannot decode Object: expected {len(self.fields_codecs)} '
                 f'elements, got {elem_count}')
 
         result = datatypes.EdgeObject_New(self.descriptor)
@@ -58,6 +58,12 @@ cdef class ObjectCodec(BaseCodec):
             datatypes.EdgeObject_SetItem(result, i, elem)
 
         return result
+
+    cdef dump(self, int level = 0):
+        buf = [f'{level * " "}{self.name}']
+        for codec in self.fields_codecs:
+            buf.append((<BaseCodec>codec).dump(level + 1))
+        return '\n'.join(buf)
 
     @staticmethod
     cdef BaseCodec new(bytes tid, tuple names, tuple flags, tuple codecs):

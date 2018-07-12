@@ -26,6 +26,8 @@ cdef class BaseCodec:
     cdef encode(self, WriteBuffer buf, object obj)
     cdef decode(self, FastReadBuffer buf)
 
+    cdef dump(self, int level=?)
+
 
 @cython.final
 cdef class EdegDBCodecContext(CodecContext):

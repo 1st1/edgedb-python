@@ -23,6 +23,7 @@ include "./tuple.pxd"
 include "./namedtuple.pxd"
 include "./object.pxd"
 include "./array.pxd"
+include "./set.pxd"
 
 
 cdef class CodecsRegistry:

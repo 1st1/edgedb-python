@@ -58,6 +58,12 @@ cdef class TupleCodec(BaseCodec):
 
         return result
 
+    cdef dump(self, int level = 0):
+        buf = [f'{level * " "}{self.name}']
+        for codec in self.fields_codecs:
+            buf.append((<BaseCodec>codec).dump(level + 1))
+        return '\n'.join(buf)
+
     @staticmethod
     cdef BaseCodec new(bytes tid, tuple fields_codecs):
         cdef:

@@ -318,6 +318,7 @@ EdgeRecordDesc_PointerIsImplicit(PyObject *ob, Py_ssize_t pos)
 Py_ssize_t
 EdgeRecordDesc_GetSize(PyObject *ob)
 {
+    assert(ob != NULL);
     assert(EdgeRecordDesc_Check(ob));
     EdgeRecordDescObject *o = (EdgeRecordDescObject *)ob;
     return o->size;

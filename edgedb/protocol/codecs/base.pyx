@@ -36,6 +36,9 @@ cdef class BaseCodec:
     cdef decode(self, FastReadBuffer buf):
         raise NotImplementedError
 
+    cdef dump(self, int level = 0):
+        return f'{level * " "}{self.name}'
+
 
 @cython.final
 cdef class EdegDBCodecContext(CodecContext):

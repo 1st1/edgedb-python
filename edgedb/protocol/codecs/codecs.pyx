@@ -26,6 +26,7 @@ include "./tuple.pyx"
 include "./namedtuple.pyx"
 include "./object.pyx"
 include "./array.pyx"
+include "./set.pyx"
 
 
 cdef class CodecsRegistry:
@@ -50,7 +51,9 @@ cdef class CodecsRegistry:
 
         if t[0] == 0:
             # set
-            raise NotImplementedError
+            pos = <uint16_t>hton.unpack_int16(spec.read(2))
+            sub_codec = <BaseCodec>codecs_list[pos]
+            return SetCodec.new(tid, sub_codec)
 
         elif t[0] == 1:
             # shape
@@ -123,8 +126,10 @@ cdef class CodecsRegistry:
             # array
             pos = <uint16_t>hton.unpack_int16(spec.read(2))
             sub_codec = <BaseCodec>codecs_list[pos]
+            return ArrayCodec.new(tid, sub_codec)
 
-        raise NotImplementedError
+        else:
+            raise NotImplementedError
 
     cdef BaseCodec build_decoder(self, bytes spec):
         cdef:

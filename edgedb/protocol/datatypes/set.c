@@ -54,6 +54,7 @@ EdgeSet_SetItem(PyObject *ob, Py_ssize_t pos, PyObject *el)
 {
     assert(EdgeSet_Check(ob));
     EdgeSetObject *o = (EdgeSetObject *)ob;
+    Py_INCREF(el);
     return PyList_SetItem(o->els, pos, el);
 }
 
