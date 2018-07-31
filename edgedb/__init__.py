@@ -24,9 +24,9 @@ class Connection:
         self._transport = transport
         self._protocol = protocol
 
-    async def fetch(self, query, *args):
+    async def fetch(self, query, *args, **kwargs):
         st = await self._protocol.prepare('', query)
-        return await self._protocol.bind_execute(st, args)
+        return await self._protocol.bind_execute(st, args, kwargs)
 
 
 async def connect(host, port, dbname):

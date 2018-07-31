@@ -34,7 +34,7 @@ cdef class CodecsRegistry:
     def __init__(self):
         self.codecs = {}
 
-    cdef BaseCodec _build_decoder(self, FastReadBuffer spec, list codecs_list):
+    cdef BaseCodec _build_codec(self, FastReadBuffer spec, list codecs_list):
         cdef:
             const char *t = spec.read(1)
             bytes tid = spec.read(16)[:16]
@@ -45,8 +45,49 @@ cdef class CodecsRegistry:
             BaseCodec res
             BaseCodec sub_codec
 
+
         res = self.codecs.get(tid)
         if res is not None:
+            if t[0] == 0:
+                # set
+                spec.read(2)
+
+            elif t[0] == 1:
+                # shape
+                els = <uint16_t>hton.unpack_int16(spec.read(2))
+                for i in range(els):
+                    spec.read(1)
+                    str_len = <uint16_t>hton.unpack_int16(spec.read(2))
+                    spec.read(str_len + 2)
+
+            elif t[0] == 2:
+                # base scalar
+                pass
+
+            elif t[0] == 3:
+                # scalar
+                spec.read(2)
+
+            elif t[0] == 4:
+                # tuple
+                els = <uint16_t>hton.unpack_int16(spec.read(2))
+                for i in range(els):
+                    spec.read(2)
+
+            elif t[0] == 5:
+                # named tuple
+                els = <uint16_t>hton.unpack_int16(spec.read(2))
+                for i in range(els):
+                    str_len = <uint16_t>hton.unpack_int16(spec.read(2))
+                    spec.read(str_len + 2)
+
+            elif t[0] == 6:
+                # array
+                spec.read(2)
+
+            else:
+                raise NotImplementedError
+
             return res
 
         if t[0] == 0:
@@ -91,6 +132,7 @@ cdef class CodecsRegistry:
             return <BaseCodec>codecs_list[pos]
 
         elif t[0] == 4:
+            # tuple
             els = <uint16_t>hton.unpack_int16(spec.read(2))
             codecs = cpython.PyTuple_New(els)
             for i in range(els):
@@ -131,11 +173,13 @@ cdef class CodecsRegistry:
         else:
             raise NotImplementedError
 
-    cdef BaseCodec build_decoder(self, bytes spec):
+    cdef BaseCodec build_codec(self, bytes spec):
         cdef:
             FastReadBuffer buf
             BaseCodec res
             list codecs_list
+
+        print('SPEC', spec)
 
         buf = FastReadBuffer.new()
         buf.buf = cpython.PyBytes_AsString(spec)
@@ -143,7 +187,7 @@ cdef class CodecsRegistry:
 
         codecs_list = []
         while buf.len:
-            res = self._build_decoder(buf, codecs_list)
+            res = self._build_codec(buf, codecs_list)
             codecs_list.append(res)
             self.codecs[res.tid] = res
 
@@ -171,91 +215,91 @@ cdef register_base_scalar_codec(
 cdef register_base_scalar_codecs():
     register_base_scalar_codec(
         'std::uuid',
-        '00000000-0000-0000-0000-000000000002',
+        '00000000-0000-0000-0000-000000000001',
         pgbase_uuid_encode,
         pgbase_uuid_decode)
 
     register_base_scalar_codec(
         'std::str',
-        '00000000-0000-0000-0000-000000000003',
+        '00000000-0000-0000-0000-000000000002',
         pgbase_text_encode,
         pgbase_text_decode)
 
     register_base_scalar_codec(
         'std::bytes',
-        '00000000-0000-0000-0000-000000000004',
+        '00000000-0000-0000-0000-000000000003',
         pgbase_bytea_encode,
         pgbase_bytea_decode)
 
     register_base_scalar_codec(
         'std::int16',
-        '00000000-0000-0000-0000-000000000005',
+        '00000000-0000-0000-0000-000000000004',
         pgbase_int2_encode,
         pgbase_int2_decode)
 
     register_base_scalar_codec(
         'std::int32',
-        '00000000-0000-0000-0000-000000000006',
+        '00000000-0000-0000-0000-000000000005',
         pgbase_int4_encode,
         pgbase_int4_decode)
 
     register_base_scalar_codec(
         'std::int64',
-        '00000000-0000-0000-0000-000000000007',
+        '00000000-0000-0000-0000-000000000006',
         pgbase_int8_encode,
         pgbase_int8_decode)
 
     register_base_scalar_codec(
         'std::float32',
-        '00000000-0000-0000-0000-000000000008',
+        '00000000-0000-0000-0000-000000000007',
         pgbase_float4_encode,
         pgbase_float4_decode)
 
     register_base_scalar_codec(
         'std::float64',
-        '00000000-0000-0000-0000-000000000009',
+        '00000000-0000-0000-0000-000000000008',
         pgbase_float8_encode,
         pgbase_float8_decode)
 
     register_base_scalar_codec(
         'std::decimal',
-        '00000000-0000-0000-0000-00000000000A',
+        '00000000-0000-0000-0000-000000000009',
         pgbase_numeric_encode_binary,
         pgbase_numeric_decode_binary)
 
     register_base_scalar_codec(
         'std::bool',
-        '00000000-0000-0000-0000-00000000000B',
+        '00000000-0000-0000-0000-00000000000A',
         pgbase_bool_encode,
         pgbase_bool_decode)
 
     register_base_scalar_codec(
         'std::datetime',
-        '00000000-0000-0000-0000-00000000000C',
+        '00000000-0000-0000-0000-00000000000B',
         pgbase_timestamptz_encode,
         pgbase_timestamptz_decode)
 
     register_base_scalar_codec(
         'std::date',
-        '00000000-0000-0000-0000-00000000000D',
+        '00000000-0000-0000-0000-00000000000C',
         pgbase_date_encode,
         pgbase_date_decode)
 
     register_base_scalar_codec(
         'std::time',
-        '00000000-0000-0000-0000-00000000000E',
+        '00000000-0000-0000-0000-00000000000D',
         pgbase_time_encode,
         pgbase_time_decode)
 
     register_base_scalar_codec(
         'std::timedelta',
-        '00000000-0000-0000-0000-00000000000F',
+        '00000000-0000-0000-0000-00000000000E',
         pgbase_interval_encode,
         pgbase_interval_decode)
 
     register_base_scalar_codec(
         'std::json',
-        '00000000-0000-0000-0000-000000000010',
+        '00000000-0000-0000-0000-00000000000F',
         pgbase_jsonb_encode,
         pgbase_jsonb_decode)
 

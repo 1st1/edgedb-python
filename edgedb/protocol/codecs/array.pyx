@@ -19,6 +19,8 @@
 
 cdef class BaseArrayCodec(BaseCodec):
 
+    # Base codec for arrays & sets.
+
     def __cinit__(self):
         self.sub_codec = None
 
@@ -30,7 +32,45 @@ cdef class BaseArrayCodec(BaseCodec):
         raise NotImplementedError
 
     cdef encode(self, WriteBuffer buf, object obj):
-        raise NotImplementedError
+        cdef:
+            WriteBuffer elem_data
+            int32_t ndims = 1
+            Py_ssize_t objlen
+            Py_ssize_t i
+
+        if not isinstance(self.sub_codec, ScalarCodec):
+            raise TypeError('only arrays of scalars are supported')
+
+        if not pgbase_is_array_iterable(obj):
+            raise TypeError(
+                'a sized iterable container expected (got type {!r})'.format(
+                    type(obj).__name__))
+
+        objlen = len(obj)
+        if objlen > _MAXINT32:
+            raise ValueError('too many elements in array value')
+
+        elem_data = WriteBuffer.new()
+        for i in range(objlen):
+            item = obj[i]
+            if item is None:
+                elem_data.write_int32(-1)
+            else:
+                try:
+                    self.sub_codec.encode(elem_data, item)
+                except TypeError as e:
+                    raise ValueError(
+                        'invalid array element: {}'.format(
+                            e.args[0])) from None
+
+        buf.write_int32(8 + 8 * ndims + elem_data.len())  # buffer length
+        buf.write_int32(ndims)  # number of dimensions
+        buf.write_int32(0)  # flags
+
+        buf.write_int32(<int32_t>objlen)
+        buf.write_int32(1)
+
+        buf.write_buffer(elem_data)
 
     cdef decode(self, FastReadBuffer buf):
         cdef:
@@ -41,7 +81,7 @@ cdef class BaseArrayCodec(BaseCodec):
             FastReadBuffer elem_buf = FastReadBuffer.new()
             int32_t ndims = hton.unpack_int32(buf.read(4))
 
-        buf.read(8)  # ignore flags & element oid
+        buf.read(4)  # ignore flags
 
         if ndims > 1:
             raise RuntimeError('only 1-dimensional arrays are supported')

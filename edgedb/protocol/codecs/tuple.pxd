@@ -18,10 +18,7 @@
 
 
 @cython.final
-cdef class TupleCodec(BaseCodec):
-
-    cdef:
-        tuple     fields_codecs
+cdef class TupleCodec(BaseRecordCodec):
 
     @staticmethod
     cdef BaseCodec new(bytes tid, tuple fields_codecs)

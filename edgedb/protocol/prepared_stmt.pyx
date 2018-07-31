@@ -31,14 +31,41 @@ cdef class PreparedStatementState:
 
         self._c = CodecsRegistry()
         self._dec = None
+        self._enc = None
 
     cdef _set_args_desc(self, bytes data):
         self.args_desc = data
+        self._enc = self._c.build_codec(data)
 
     cdef _set_row_desc(self, bytes data):
         self.row_desc = data
-        self._dec = self._c.build_decoder(data)
-        print(self._dec.dump())
+        self._dec = self._c.build_codec(data)
+
+    cdef _encode_args(self, args, kwargs):
+        if args and kwargs:
+            raise RuntimeError(
+                'either positional or named arguments are supported; '
+                'not both')
+
+        cdef WriteBuffer buf
+        buf = WriteBuffer.new()
+
+        if kwargs:
+            if not isinstance(self._enc, NamedTupleCodec):
+                raise RuntimeError(
+                    'expected positional arguments, got named arguments')
+
+            (<NamedTupleCodec>self._enc).encode_kwargs(buf, kwargs)
+
+        else:
+            if not isinstance(self._enc, TupleCodec):
+                raise RuntimeError(
+                    'expected named arguments, got positional arguments')
+            self._enc.encode(buf, args)
+
+        bind_args = bytes(buf)
+        print(bind_args)
+        return bind_args
 
     cdef _decode_row(self, const char* cbuf, ssize_t buf_len):
         cdef:

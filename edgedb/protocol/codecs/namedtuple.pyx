@@ -18,14 +18,7 @@
 
 
 @cython.final
-cdef class NamedTupleCodec(BaseCodec):
-
-    def __cinit__(self):
-        self.descriptor = None
-        self.fields_codecs = ()
-
-    cdef encode(self, WriteBuffer buf, object obj):
-        raise NotImplementedError
+cdef class NamedTupleCodec(BaseNamedRecordCodec):
 
     cdef decode(self, FastReadBuffer buf):
         cdef:
@@ -46,7 +39,6 @@ cdef class NamedTupleCodec(BaseCodec):
         result = datatypes.EdgeNamedTuple_New(self.descriptor)
 
         for i in range(elem_count):
-            buf.read(4)  # ignore element type oid
             elem_len = hton.unpack_int32(buf.read(4))
 
             if elem_len == -1:
@@ -59,11 +51,39 @@ cdef class NamedTupleCodec(BaseCodec):
 
         return result
 
-    cdef dump(self, int level = 0):
-        buf = [f'{level * " "}{self.name}']
-        for codec in self.fields_codecs:
-            buf.append((<BaseCodec>codec).dump(level + 1))
-        return '\n'.join(buf)
+    cdef encode_kwargs(self, WriteBuffer buf, dict obj):
+        cdef:
+            WriteBuffer elem_data
+            Py_ssize_t objlen
+            Py_ssize_t i
+            BaseCodec sub_codec
+
+        self._check_encoder()
+
+        objlen = len(obj)
+        if objlen != len(self.fields_codecs):
+            raise RuntimeError(
+                f'expected {len(self.fields_codecs)} keyword arguments, '
+                f'got {objlen}')
+
+        elem_data = WriteBuffer.new()
+        for i in range(objlen):
+            name = datatypes.EdgeRecordDesc_PointerName(self.descriptor, i)
+            arg = obj[name]
+
+            if arg is None:
+                elem_data.write_int32(-1)
+            else:
+                sub_codec = <BaseCodec>(self.fields_codecs[i])
+                try:
+                    sub_codec.encode(elem_data, arg)
+                except TypeError as e:
+                    raise ValueError(
+                        f'cannot encode {name!r} argument') from None
+
+        buf.write_int32(4 + elem_data.len())  # buffer length
+        buf.write_int32(objlen)
+        buf.write_buffer(elem_data)
 
     @staticmethod
     cdef BaseCodec new(bytes tid, tuple fields_names, tuple fields_codecs):

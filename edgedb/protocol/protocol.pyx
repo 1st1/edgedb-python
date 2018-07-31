@@ -122,18 +122,10 @@ cdef class BaseProtocol(CoreProtocol):
         waiter.set_result(self.statement)
 
     @cython.iterable_coroutine
-    async def bind_execute(self, statement, args):
-        assert len(args) == 0
-
-        cdef WriteBuffer buf
-        buf = WriteBuffer.new()
-        buf.write_int32(0x00010001)  # all arguments are encoded in binary
-        buf.write_int16(0)  # number of arguments
-        buf.write_int32(0x00010001)  # all columns should be in binary
-        bind_args = bytes(buf)
-
+    async def bind_execute(self, statement, args, kwargs):
         waiter = self._new_waiter(None)
         self.statement = statement
+        bind_args = self.statement._encode_args(args, kwargs)
         self._bind_execute(statement, bind_args)
         return await waiter
 

@@ -18,11 +18,9 @@
 
 
 @cython.final
-cdef class NamedTupleCodec(BaseCodec):
+cdef class NamedTupleCodec(BaseNamedRecordCodec):
 
-    cdef:
-        object    descriptor
-        tuple     fields_codecs
+    cdef encode_kwargs(self, WriteBuffer buf, dict obj)
 
     @staticmethod
     cdef BaseCodec new(bytes tid, tuple fields_names, tuple fields_codecs)

@@ -18,11 +18,7 @@
 
 
 @cython.final
-cdef class ObjectCodec(BaseCodec):
-
-    def __cinit__(self):
-        self.descriptor = None
-        self.fields_codecs = ()
+cdef class ObjectCodec(BaseNamedRecordCodec):
 
     cdef encode(self, WriteBuffer buf, object obj):
         raise NotImplementedError
@@ -46,7 +42,6 @@ cdef class ObjectCodec(BaseCodec):
         result = datatypes.EdgeObject_New(self.descriptor)
 
         for i in range(elem_count):
-            buf.read(4)  # ignore element type oid
             elem_len = hton.unpack_int32(buf.read(4))
 
             if elem_len == -1:
@@ -58,12 +53,6 @@ cdef class ObjectCodec(BaseCodec):
             datatypes.EdgeObject_SetItem(result, i, elem)
 
         return result
-
-    cdef dump(self, int level = 0):
-        buf = [f'{level * " "}{self.name}']
-        for codec in self.fields_codecs:
-            buf.append((<BaseCodec>codec).dump(level + 1))
-        return '\n'.join(buf)
 
     @staticmethod
     cdef BaseCodec new(bytes tid, tuple names, tuple flags, tuple codecs):

@@ -27,6 +27,7 @@ cdef extern from "datatypes/datatypes.h":
 
     object EdgeRecordDesc_InitType()
     object EdgeRecordDesc_New(object, object)
+    object EdgeRecordDesc_PointerName(object, Py_ssize_t pos)
 
     object EdgeTuple_InitType()
     object EdgeTuple_New(Py_ssize_t)
@@ -35,7 +36,6 @@ cdef extern from "datatypes/datatypes.h":
     object EdgeNamedTuple_InitType()
     object EdgeNamedTuple_New(object)
     int EdgeNamedTuple_SetItem(object, Py_ssize_t, object) except -1
-
 
     object EdgeObject_InitType()
     object EdgeObject_New(object);

@@ -29,8 +29,11 @@ cdef class PreparedStatementState:
 
         CodecsRegistry _c
         BaseCodec _dec
+        BaseCodec _enc
 
     cdef _set_args_desc(self, bytes data)
     cdef _set_row_desc(self, bytes data)
+
+    cdef _encode_args(self, args, kwargs)
 
     cdef _decode_row(self, const char* cbuf, ssize_t buf_len)

@@ -31,5 +31,5 @@ cdef class CodecsRegistry:
     cdef:
         dict codecs
 
-    cdef BaseCodec _build_decoder(self, FastReadBuffer spec, list codecs_list)
-    cdef BaseCodec build_decoder(self, bytes spec)
+    cdef BaseCodec _build_codec(self, FastReadBuffer spec, list codecs_list)
+    cdef BaseCodec build_codec(self, bytes spec)

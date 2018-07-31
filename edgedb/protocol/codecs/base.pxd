@@ -29,7 +29,23 @@ cdef class BaseCodec:
     cdef dump(self, int level=?)
 
 
+cdef class BaseRecordCodec(BaseCodec):
+
+    cdef:
+        tuple fields_codecs
+        uint64_t encoder_flags
+
+    cdef _check_encoder(self)
+
+
+cdef class BaseNamedRecordCodec(BaseRecordCodec):
+
+    cdef:
+        object descriptor
+
+
 @cython.final
 cdef class EdegDBCodecContext(CodecContext):
+
     cdef:
         object _codec

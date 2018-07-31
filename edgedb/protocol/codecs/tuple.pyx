@@ -18,13 +18,7 @@
 
 
 @cython.final
-cdef class TupleCodec(BaseCodec):
-
-    def __cinit__(self):
-        self.fields_codecs = ()
-
-    cdef encode(self, WriteBuffer buf, object obj):
-        raise NotImplementedError
+cdef class TupleCodec(BaseRecordCodec):
 
     cdef decode(self, FastReadBuffer buf):
         cdef:
@@ -45,7 +39,6 @@ cdef class TupleCodec(BaseCodec):
         result = datatypes.EdgeTuple_New(elem_count)
 
         for i in range(elem_count):
-            buf.read(4)  # ignore element type oid
             elem_len = hton.unpack_int32(buf.read(4))
 
             if elem_len == -1:
