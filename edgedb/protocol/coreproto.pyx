@@ -81,6 +81,9 @@ cdef class CoreProtocol:
                 elif state == PROTOCOL_BIND_EXECUTE:
                     self._process__bind_execute(mtype)
 
+                elif state == PROTOCOL_SIMPLE_QUERY:
+                    self._process__simple_query(mtype)
+
                 elif state == PROTOCOL_CANCELLED:
                     # discard all messages until the sync message
                     if mtype == b'E':
@@ -153,6 +156,20 @@ cdef class CoreProtocol:
             self._parse_msg_ready_for_query()
             self.con_status = CONNECTION_OK
             self._push_result()
+
+    cdef _process__simple_query(self, char mtype):
+        if mtype == b'Z':
+            # ReadyForQuery
+            self._parse_msg_ready_for_query()
+            self._push_result()
+
+        elif mtype == b'C':
+            # CommandComplete
+            self._parse_msg_command_complete()
+
+        else:
+            # We don't really care about COPY IN etc
+            self.buffer.consume_message()
 
     cdef _process__prepare(self, char mtype):
         if mtype == b'1':
@@ -388,14 +405,23 @@ cdef class CoreProtocol:
         ver_buf.write_int16(0)
 
         msg_buf = WriteBuffer.new_message(b'0')
-        msg_buf.write_utf8(self.con_params.user)
-        msg_buf.write_utf8(self.con_params.password)
-        msg_buf.write_utf8(self.con_params.database)
+        msg_buf.write_utf8(self.con_params.user or '')
+        msg_buf.write_utf8(self.con_params.password or '')
+        msg_buf.write_utf8(self.con_params.database or '')
         msg_buf.end_message()
 
         buf = WriteBuffer()
         buf.write_buffer(ver_buf)
         buf.write_buffer(msg_buf)
+        self._write(buf)
+
+    cdef _simple_query(self, str script):
+        cdef WriteBuffer buf
+        self._ensure_connected()
+        self._set_state(PROTOCOL_SIMPLE_QUERY)
+        buf = WriteBuffer.new_message(b'Q')
+        buf.write_str(script, self.encoding)
+        buf.end_message()
         self._write(buf)
 
     cdef _prepare(self, str stmt_name, str query):

@@ -15,3 +15,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+
+import edgedb
+
+
+from edb.server import cluster as edb_cluster
+from edb.server import _testbase as tb
+
+
+class QueryTestCase(tb.QueryTestCase):
+
+    BASE_TEST_CLASS = True
+
+    @classmethod
+    def setUpClass(cls):
+        edb_cluster.enable_dev_mode()
+        super().setUpClass()
+
+    @classmethod
+    def connect(cls, loop, cluster, database=None):
+        connect_args = cluster.get_connect_args().copy()
+        connect_args['user'] = 'edgedb'
+        connect_args['port'] += 1  # XXX
+        connect_args['database'] = database
+        return loop.run_until_complete(edgedb.connect(**connect_args))

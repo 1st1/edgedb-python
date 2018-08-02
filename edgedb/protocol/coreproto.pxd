@@ -34,6 +34,7 @@ cdef enum ProtocolState:
     PROTOCOL_AUTH = 10
     PROTOCOL_PREPARE = 20
     PROTOCOL_BIND_EXECUTE = 21
+    PROTOCOL_SIMPLE_QUERY = 22
 
 
 cdef enum AuthenticationMessage:
@@ -89,6 +90,7 @@ cdef class CoreProtocol:
     cdef _process__auth(self, char mtype)
     cdef _process__prepare(self, char mtype)
     cdef _process__bind_execute(self, char mtype)
+    cdef _process__simple_query(self, char mtype)
 
     cdef _parse_data_msgs(self)
     cdef _parse_msg_authentication(self)
@@ -112,6 +114,8 @@ cdef class CoreProtocol:
 
     cdef _prepare(self, str stmt_name, str query)
     cdef _bind_execute(self, PreparedStatementState statement, bytes bind_args)
+
+    cdef _simple_query(self, str script)
 
     cdef _connect(self)
     cdef _terminate(self)

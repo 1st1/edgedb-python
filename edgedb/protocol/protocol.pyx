@@ -103,6 +103,12 @@ cdef class BaseProtocol(CoreProtocol):
         self.transport.abort()
 
     @cython.iterable_coroutine
+    async def execute(self, script):
+        waiter = self._new_waiter(None)
+        self._simple_query(script)  # network op
+        return await waiter
+
+    @cython.iterable_coroutine
     async def prepare(self, stmt_name, query):
         waiter = self._new_waiter(None)
         self.statement = PreparedStatementState(stmt_name, query)
@@ -287,6 +293,9 @@ cdef class BaseProtocol(CoreProtocol):
     cdef _on_result__connect(self, object waiter):
         waiter.set_result(True)
 
+    cdef _on_result__simple_query(self, object waiter):
+        waiter.set_result(self.result_status_msg)
+
     cdef _dispatch_result(self):
         waiter = self.waiter
         self.waiter = None
@@ -319,6 +328,9 @@ cdef class BaseProtocol(CoreProtocol):
 
             elif self.state == PROTOCOL_BIND_EXECUTE:
                 self._on_result__bind_execute(waiter)
+
+            elif self.state == PROTOCOL_SIMPLE_QUERY:
+                self._on_result__simple_query(waiter)
 
             else:
                 raise RuntimeError(
