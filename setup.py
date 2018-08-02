@@ -1,21 +1,30 @@
-# Copyright (C) 2016-present the asyncpg authors and contributors
-# <see AUTHORS file>
 #
-# This module is part of asyncpg and is released under
-# the Apache 2.0 License: http://www.apache.org/licenses/LICENSE-2.0
+# This source file is part of the EdgeDB open source project.
+#
+# Copyright 2008-present MagicStack Inc. and the EdgeDB authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 
 import sys
 
 if sys.version_info < (3, 5):
-    raise RuntimeError('asyncpg requires Python 3.5 or greater')
+    raise RuntimeError('edgedb requires Python 3.5 or greater')
 
 import os
 import os.path
-import pathlib
 import platform
-import re
-import subprocess
 
 # We use vanilla build_ext, to avoid importing Cython via
 # the setuptools version.
@@ -23,13 +32,11 @@ from distutils import extension as distutils_extension
 from distutils.command import build_ext as distutils_build_ext
 
 import setuptools
-from setuptools.command import build_py as setuptools_build_py
-from setuptools.command import sdist as setuptools_sdist
 
 
-CYTHON_DEPENDENCY = 'Cython==0.28.3'
+CYTHON_DEPENDENCY = 'Cython==0.28.4'
 
-# Minimal dependencies required to test asyncpg.
+# Minimal dependencies required to test edgedb.
 TEST_DEPENDENCIES = [
     'flake8~=3.5.0',
     'uvloop>=0.8.0;platform_system!="Windows"',
@@ -45,7 +52,7 @@ DOC_DEPENDENCIES = [
 EXTRA_DEPENDENCIES = {
     'docs': DOC_DEPENDENCIES,
     'test': TEST_DEPENDENCIES,
-    # Dependencies required to develop asyncpg.
+    # Dependencies required to develop edgedb.
     'dev': [
         CYTHON_DEPENDENCY,
         'pytest>=3.6.0',
@@ -63,8 +70,6 @@ if platform.uname().system != 'Windows':
 class build_ext(distutils_build_ext.build_ext):
 
     user_options = distutils_build_ext.build_ext.user_options + [
-        ('cython-always', None,
-            'run cythonize() even if .c files are present'),
         ('cython-annotate', None,
             'Produce a colorized HTML version of the Cython source.'),
         ('cython-directives=', None,
@@ -98,70 +103,52 @@ class build_ext(distutils_build_ext.build_ext):
         if getattr(self, '_initialized', False):
             return
 
-        need_cythonize = self.cython_always
-        cfiles = {}
+        import pkg_resources
 
-        for extension in self.distribution.ext_modules:
-            for i, sfile in enumerate(extension.sources):
-                if sfile.endswith('.pyx'):
-                    prefix, ext = os.path.splitext(sfile)
-                    cfile = prefix + '.c'
+        # Double check Cython presence in case setup_requires
+        # didn't go into effect (most likely because someone
+        # imported Cython before setup_requires injected the
+        # correct egg into sys.path.
+        try:
+            import Cython
+        except ImportError:
+            raise RuntimeError(
+                'please install {} to compile edgedb from source'.format(
+                    CYTHON_DEPENDENCY))
 
-                    if os.path.exists(cfile) and not self.cython_always:
-                        extension.sources[i] = cfile
-                    else:
-                        if os.path.exists(cfile):
-                            cfiles[cfile] = os.path.getmtime(cfile)
-                        else:
-                            cfiles[cfile] = 0
-                        need_cythonize = True
+        cython_dep = pkg_resources.Requirement.parse(CYTHON_DEPENDENCY)
+        if Cython.__version__ not in cython_dep:
+            raise RuntimeError(
+                'edgedb requires {}, got Cython=={}'.format(
+                    CYTHON_DEPENDENCY, Cython.__version__
+                ))
 
-        if need_cythonize:
-            import pkg_resources
+        from Cython.Build import cythonize
 
-            # Double check Cython presence in case setup_requires
-            # didn't go into effect (most likely because someone
-            # imported Cython before setup_requires injected the
-            # correct egg into sys.path.
-            try:
-                import Cython
-            except ImportError:
-                raise RuntimeError(
-                    'please install {} to compile asyncpg from source'.format(
-                        CYTHON_DEPENDENCY))
+        directives = {}
+        if self.cython_directives:
+            for directive in self.cython_directives.split(','):
+                k, _, v = directive.partition('=')
+                if v.lower() == 'false':
+                    v = False
+                if v.lower() == 'true':
+                    v = True
 
-            cython_dep = pkg_resources.Requirement.parse(CYTHON_DEPENDENCY)
-            if Cython.__version__ not in cython_dep:
-                raise RuntimeError(
-                    'asyncpg requires {}, got Cython=={}'.format(
-                        CYTHON_DEPENDENCY, Cython.__version__
-                    ))
+                directives[k] = v
 
-            from Cython.Build import cythonize
-
-            directives = {}
-            if self.cython_directives:
-                for directive in self.cython_directives.split(','):
-                    k, _, v = directive.partition('=')
-                    if v.lower() == 'false':
-                        v = False
-                    if v.lower() == 'true':
-                        v = True
-
-                    directives[k] = v
-
-            self.distribution.ext_modules[:] = cythonize(
-                self.distribution.ext_modules,
-                compiler_directives=directives,
-                annotate=self.cython_annotate)
+        self.distribution.ext_modules[:] = cythonize(
+            self.distribution.ext_modules,
+            compiler_directives=directives,
+            annotate=self.cython_annotate)
 
         super(build_ext, self).finalize_options()
 
 
 setuptools.setup(
+    setup_requires=EXTRA_DEPENDENCIES['dev'],
     name='edgedb',
     version='0.0.1',
-    description='An EdgeDB driver',
+    description='EdgeDB Python driver',
     platforms=['POSIX'],
     author='MagicStack Inc',
     author_email='hello@magic.io',
