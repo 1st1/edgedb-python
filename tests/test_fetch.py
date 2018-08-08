@@ -43,3 +43,28 @@ class TestFetch(tb.QueryTestCase):
             "Set{Object{name := 'Improve EdgeDB repl output rendering.'}, "
             "Object{name := 'Regression.'}, Object{name := 'Release EdgeDB'}, "
             "Object{name := 'Repl tweak.'}}")
+
+    async def test_fetch_2(self):
+        r = await self.con.fetch(r'''
+            SELECT ();
+        ''')
+        self.assertEqual(repr(r), "Set{()}")
+
+    async def test_fetch_3(self):
+        r = await self.con.fetch(r'''
+            SELECT <int32>$0;
+        ''', 42)
+        self.assertEqual(repr(r), "Set{42}")
+
+    async def test_fetch_4(self):
+        r = await self.con.fetch(r'''
+            SELECT <int32>$foo;
+        ''', foo=43)
+        self.assertEqual(repr(r), "Set{43}")
+
+    async def test_fetch_5(self):
+        r = await self.con.fetch('''
+            WITH MODULE test
+            SELECT (<array<str>>$foo)[0] + (<array<str>>$bar)[0];
+        ''', bar=['ice'], foo=['Al'])
+        self.assertEqual(repr(r), "Set{'Alice'}")
