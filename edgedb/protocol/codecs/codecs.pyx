@@ -179,8 +179,6 @@ cdef class CodecsRegistry:
             BaseCodec res
             list codecs_list
 
-        print('SPEC', spec)
-
         buf = FastReadBuffer.new()
         buf.buf = cpython.PyBytes_AsString(spec)
         buf.len = cpython.Py_SIZE(spec)

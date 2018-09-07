@@ -64,7 +64,6 @@ cdef class PreparedStatementState:
             self._enc.encode(buf, args)
 
         bind_args = bytes(buf)
-        print(bind_args)
         return bind_args
 
     cdef _decode_row(self, const char* cbuf, ssize_t buf_len):
