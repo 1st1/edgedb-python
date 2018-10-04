@@ -17,14 +17,4 @@
 #
 
 
-@cython.final
-cdef class ScalarCodec(BaseCodec):
-
-    cdef:
-        pgproto.encode_func     c_encoder
-        pgproto.decode_func     c_decoder
-
-    @staticmethod
-    cdef BaseCodec new(bytes tid, str name,
-                       pgproto.encode_func encoder,
-                       pgproto.decode_func decoder)
+DEF _MAXINT32 = 2**31 - 1

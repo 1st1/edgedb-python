@@ -181,12 +181,9 @@ cdef class CoreProtocol:
             # Query description
 
             desc_len = self.buffer.read_int16()
-            data_desc = self.buffer.read(desc_len)
+            self.result_row_desc = self.buffer.read_bytes(desc_len)
             desc_len = self.buffer.read_int16()
-            param_desc = self.buffer.read(desc_len)
-
-            self.result_row_desc = (<Memory>data_desc).as_bytes()
-            self.result_param_desc = (<Memory>param_desc).as_bytes()
+            self.result_param_desc = self.buffer.read_bytes(desc_len)
 
         elif mtype == b'n':
             # NoData -- Query doesn't return data
@@ -219,7 +216,6 @@ cdef class CoreProtocol:
             const char* cbuf
             ssize_t cbuf_len
             object row
-            Memory mem
 
         if PG_DEBUG:
             if buf.get_message_type() != b'D':
@@ -246,7 +242,10 @@ cdef class CoreProtocol:
                 row = decoder(self, cbuf, cbuf_len)
             else:
                 mem = buf.consume_message()
-                row = decoder(self, mem.buf, mem.length)
+                row = decoder(
+                    self,
+                    cpython.PyBytes_AS_STRING(mem),
+                    cpython.PyBytes_GET_SIZE(mem))
 
             datatypes.EdgeSet_AppendItem(rows, row)
 

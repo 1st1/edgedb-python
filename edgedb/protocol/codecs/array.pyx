@@ -17,6 +17,11 @@
 #
 
 
+from collections.abc import (Iterable as IterableABC,
+                             Mapping as MappingABC,
+                             Sized as SizedABC)
+
+
 cdef class BaseArrayCodec(BaseCodec):
 
     # Base codec for arrays & sets.
@@ -41,7 +46,7 @@ cdef class BaseArrayCodec(BaseCodec):
         if not isinstance(self.sub_codec, ScalarCodec):
             raise TypeError('only arrays of scalars are supported')
 
-        if not pgbase_is_array_iterable(obj):
+        if not _is_array_iterable(obj):
             raise TypeError(
                 'a sized iterable container expected (got type {!r})'.format(
                     type(obj).__name__))
@@ -72,16 +77,16 @@ cdef class BaseArrayCodec(BaseCodec):
 
         buf.write_buffer(elem_data)
 
-    cdef decode(self, FastReadBuffer buf):
+    cdef decode(self, FRBuffer *buf):
         cdef:
             object result
             Py_ssize_t elem_count
             Py_ssize_t i
             int32_t elem_len
-            FastReadBuffer elem_buf = FastReadBuffer.new()
-            int32_t ndims = hton.unpack_int32(buf.read(4))
+            FRBuffer elem_buf
+            int32_t ndims = hton.unpack_int32(frb_read(buf, 4))
 
-        buf.read(4)  # ignore flags
+        frb_read(buf, 4)  # ignore flags
 
         if ndims > 1:
             raise RuntimeError('only 1-dimensional arrays are supported')
@@ -91,17 +96,17 @@ cdef class BaseArrayCodec(BaseCodec):
 
         assert ndims == 1
 
-        elem_count = <Py_ssize_t><uint32_t>hton.unpack_int32(buf.read(4))
-        buf.read(4)  # Ignore the lower bound information
+        elem_count = <Py_ssize_t><uint32_t>hton.unpack_int32(frb_read(buf, 4))
+        frb_read(buf, 4)  # Ignore the lower bound information
 
         result = self._new_collection(elem_count)
         for i in range(elem_count):
-            elem_len = hton.unpack_int32(buf.read(4))
+            elem_len = hton.unpack_int32(frb_read(buf, 4))
             if elem_len == -1:
                 elem = None
             else:
-                elem_buf.slice_from(buf, elem_len)
-                elem = self.sub_codec.decode(elem_buf)
+                frb_slice_from(&elem_buf, buf, elem_len)
+                elem = self.sub_codec.decode(&elem_buf)
 
             self._set_collection_item(result, i, elem)
 
@@ -133,3 +138,17 @@ cdef class ArrayCodec(BaseArrayCodec):
         codec.sub_codec = sub_codec
 
         return codec
+
+
+cdef inline bint _is_trivial_container(object obj):
+    return cpython.PyUnicode_Check(obj) or cpython.PyBytes_Check(obj) or \
+            cpythonx.PyByteArray_Check(obj) or cpythonx.PyMemoryView_Check(obj)
+
+
+cdef inline _is_array_iterable(object obj):
+    return (
+        isinstance(obj, IterableABC) and
+        isinstance(obj, SizedABC) and
+        not _is_trivial_container(obj) and
+        not isinstance(obj, MappingABC)
+    )

@@ -23,16 +23,16 @@ cdef class ObjectCodec(BaseNamedRecordCodec):
     cdef encode(self, WriteBuffer buf, object obj):
         raise NotImplementedError
 
-    cdef decode(self, FastReadBuffer buf):
+    cdef decode(self, FRBuffer *buf):
         cdef:
             object result
             Py_ssize_t elem_count
             Py_ssize_t i
             int32_t elem_len
             BaseCodec elem_codec
-            FastReadBuffer elem_buf = FastReadBuffer.new()
+            FRBuffer elem_buf
 
-        elem_count = <Py_ssize_t><uint32_t>hton.unpack_int32(buf.read(4))
+        elem_count = <Py_ssize_t><uint32_t>hton.unpack_int32(frb_read(buf, 4))
 
         if elem_count != len(self.fields_codecs):
             raise RuntimeError(
@@ -42,13 +42,14 @@ cdef class ObjectCodec(BaseNamedRecordCodec):
         result = datatypes.EdgeObject_New(self.descriptor)
 
         for i in range(elem_count):
-            elem_len = hton.unpack_int32(buf.read(4))
+            elem_len = hton.unpack_int32(frb_read(buf, 4))
 
             if elem_len == -1:
                 elem = None
             else:
                 elem_codec = <BaseCodec>self.fields_codecs[i]
-                elem = elem_codec.decode(elem_buf.slice_from(buf, elem_len))
+                elem = elem_codec.decode(
+                    frb_slice_from(&elem_buf, buf, elem_len))
 
             datatypes.EdgeObject_SetItem(result, i, elem)
 

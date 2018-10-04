@@ -27,12 +27,13 @@ cdef class ScalarCodec(BaseCodec):
     cdef encode(self, WriteBuffer buf, object obj):
         self.c_encoder(DEFAULT_CODEC_CONTEXT, buf, obj)
 
-    cdef decode(self, FastReadBuffer buf):
+    cdef decode(self, FRBuffer *buf):
         return self.c_decoder(DEFAULT_CODEC_CONTEXT, buf)
 
     @staticmethod
     cdef BaseCodec new(bytes tid, str name,
-                       encode_func encoder, decode_func decoder):
+                       pgproto.encode_func encoder,
+                       pgproto.decode_func decoder):
         cdef:
             ScalarCodec codec
 

@@ -24,7 +24,7 @@ cdef class BaseCodec:
         str     name
 
     cdef encode(self, WriteBuffer buf, object obj)
-    cdef decode(self, FastReadBuffer buf)
+    cdef decode(self, FRBuffer *buf)
 
     cdef dump(self, int level=?)
 
@@ -45,7 +45,7 @@ cdef class BaseNamedRecordCodec(BaseRecordCodec):
 
 
 @cython.final
-cdef class EdegDBCodecContext(CodecContext):
+cdef class EdegDBCodecContext(pgproto.CodecContext):
 
     cdef:
         object _codec

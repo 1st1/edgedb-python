@@ -37,7 +37,7 @@ cdef class BaseCodec:
     cdef encode(self, WriteBuffer buf, object obj):
         raise NotImplementedError
 
-    cdef decode(self, FastReadBuffer buf):
+    cdef decode(self, FRBuffer *buf):
         raise NotImplementedError
 
     cdef dump(self, int level = 0):
@@ -71,7 +71,7 @@ cdef class BaseRecordCodec(BaseCodec):
 
         self._check_encoder()
 
-        if not pgbase_is_array_iterable(obj):
+        if not _is_array_iterable(obj):
             raise TypeError(
                 'a sized iterable container expected (got type {!r})'.format(
                     type(obj).__name__))
@@ -121,7 +121,7 @@ cdef class BaseNamedRecordCodec(BaseRecordCodec):
 
 
 @cython.final
-cdef class EdegDBCodecContext(CodecContext):
+cdef class EdegDBCodecContext(pgproto.CodecContext):
 
     def __cinit__(self):
         self._codec = codecs.lookup('utf-8')

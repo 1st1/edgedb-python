@@ -17,22 +17,42 @@
 #
 
 
-# cython: language_level=3
-
-
+cimport cython
 cimport cpython
 
 import asyncio
 import collections
 import time
 
-from . cimport datatypes
+from edgedb.pgproto.pgproto cimport (
+    WriteBuffer,
+    ReadBuffer,
 
-include "./pgbase/pgbase.pyx"
+    FRBuffer,
+    frb_init,
+    frb_read,
+    frb_read_all,
+    frb_slice_from,
+    frb_check,
+    frb_set_len,
+    frb_get_len,
+)
+
+from edgedb.pgproto cimport pgproto
+from edgedb.pgproto cimport hton
+
+from libc.stdint cimport int8_t, uint8_t, int16_t, uint16_t, \
+                         int32_t, uint32_t, int64_t, uint64_t, \
+                         UINT32_MAX
+
+from . cimport datatypes
+from . cimport cpythonx
+
+include "./consts.pxi"
 include "./codecs/codecs.pyx"
 
-include "coreproto.pyx"
-include "prepared_stmt.pyx"
+include "./coreproto.pyx"
+include "./prepared_stmt.pyx"
 
 
 NO_TIMEOUT = object()

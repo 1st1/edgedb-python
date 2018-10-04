@@ -27,8 +27,6 @@ cdef class PreparedStatementState:
         self.args_desc = None
         self.row_desc = None
 
-        self.buffer = FastReadBuffer.new()
-
         self._c = CodecsRegistry()
         self._dec = None
         self._enc = None
@@ -68,19 +66,19 @@ cdef class PreparedStatementState:
 
     cdef _decode_row(self, const char* cbuf, ssize_t buf_len):
         cdef:
-            FastReadBuffer rbuf = self.buffer
+            FRBuffer _rbuf
+            FRBuffer *rbuf = &_rbuf
 
         if PG_DEBUG:
-            rbuf.buf = cbuf
-            rbuf.len = buf_len
+            frb_init(rbuf, cbuf, buf_len)
 
-            flen = hton.unpack_int16(rbuf.read(2))
+            flen = hton.unpack_int16(frb_read(rbuf, 2))
             if flen != 1:
                 raise RuntimeError(
                     f'invalid number of columns: expected 1 got {flen}')
 
-            buflen = hton.unpack_int32(rbuf.read(4))
-            if rbuf.len != buflen:
+            buflen = hton.unpack_int32(frb_read(rbuf, 4))
+            if frb_get_len(rbuf) != buflen:
                 raise RuntimeError('invalid buffer length')
         else:
             # EdgeDB returns rows with one column; Postgres' rows
@@ -88,7 +86,6 @@ cdef class PreparedStatementState:
             #   2 bytes - int16 - number of coluns
             #   4 bytes - int32 - every column is prefixed with its length
             # so we want to skip first 6 bytes:
-            rbuf.buf = cbuf + 6
-            rbuf.len = buf_len - 6
+            frb_init(rbuf, cbuf + 6, buf_len - 6)
 
         return self._dec.decode(rbuf)

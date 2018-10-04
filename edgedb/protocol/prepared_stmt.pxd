@@ -25,8 +25,6 @@ cdef class PreparedStatementState:
         readonly bytes args_desc
         readonly bytes row_desc
 
-        FastReadBuffer buffer
-
         CodecsRegistry _c
         BaseCodec _dec
         BaseCodec _enc

@@ -34,7 +34,7 @@ from distutils.command import build_ext as distutils_build_ext
 import setuptools
 
 
-CYTHON_DEPENDENCY = 'Cython==0.28.4'
+CYTHON_DEPENDENCY = 'Cython==0.28.5'
 
 # Minimal dependencies required to test edgedb.
 TEST_DEPENDENCIES = [
@@ -125,7 +125,9 @@ class build_ext(distutils_build_ext.build_ext):
 
         from Cython.Build import cythonize
 
-        directives = {}
+        directives = {
+            'language_level': '3'
+        }
         if self.cython_directives:
             for directive in self.cython_directives.split(','):
                 k, _, v = directive.partition('=')
@@ -145,19 +147,25 @@ class build_ext(distutils_build_ext.build_ext):
 
 
 setuptools.setup(
-    setup_requires=EXTRA_DEPENDENCIES['dev'],
     name='edgedb',
     version='0.0.1',
     description='EdgeDB Python driver',
-    platforms=['POSIX'],
+    platforms=['macOS', 'POSIX', 'Windows'],
     author='MagicStack Inc',
     author_email='hello@magic.io',
     url='https://github.com/edgedb/edgedb-python',
     license='Apache License, Version 2.0',
     packages=['edgedb'],
     provides=['edgedb'],
+    zip_safe=False,
     include_package_data=True,
     ext_modules=[
+        distutils_extension.Extension(
+            "edgedb.pgproto.pgproto",
+            ["edgedb/pgproto/pgproto.pyx"],
+            extra_compile_args=CFLAGS,
+            extra_link_args=LDFLAGS),
+
         distutils_extension.Extension(
             "edgedb.protocol.protocol",
             ["edgedb/protocol/datatypes/args.c",
@@ -175,4 +183,5 @@ setuptools.setup(
     ],
     cmdclass={'build_ext': build_ext},
     test_suite='tests.suite',
+    setup_requires=EXTRA_DEPENDENCIES['dev'],
 )

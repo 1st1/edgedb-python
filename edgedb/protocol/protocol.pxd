@@ -17,17 +17,26 @@
 #
 
 
-# cython: language_level=3
-
-
 cimport cython
+cimport cpython
+
+from libc.stdint cimport int16_t, int32_t, uint16_t, \
+                         uint32_t, int64_t, uint64_t
+
+from edgedb.pgproto.pgproto cimport (
+    WriteBuffer,
+    ReadBuffer,
+    FRBuffer,
+)
+
+from edgedb.pgproto cimport pgproto
+from edgedb.pgproto.debug cimport PG_DEBUG
 
 
-include "./pgbase/pgbase.pxd"
 include "./codecs/codecs.pxd"
 
-include "coreproto.pxd"
-include "prepared_stmt.pxd"
+include "./coreproto.pxd"
+include "./prepared_stmt.pxd"
 
 
 cdef class BaseProtocol(CoreProtocol):
