@@ -20,24 +20,13 @@
 @cython.final
 cdef class PreparedStatementState:
 
-    def __init__(self, name, query):
+    def __init__(self, name, query, BaseCodec enc, BaseCodec dec):
         self.name = name
         self.query = query
         self.closed = False
-        self.args_desc = None
-        self.row_desc = None
 
-        self._c = CodecsRegistry()
-        self._dec = None
-        self._enc = None
-
-    cdef _set_args_desc(self, bytes data):
-        self.args_desc = data
-        self._enc = self._c.build_codec(data)
-
-    cdef _set_row_desc(self, bytes data):
-        self.row_desc = data
-        self._dec = self._c.build_codec(data)
+        self._dec = dec
+        self._enc = enc
 
     cdef _encode_args(self, args, kwargs):
         if args and kwargs:

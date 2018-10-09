@@ -167,7 +167,7 @@ setuptools.setup(
             extra_link_args=LDFLAGS),
 
         distutils_extension.Extension(
-            "edgedb.protocol.protocol",
+            "edgedb.protocol.aprotocol",
             ["edgedb/protocol/datatypes/args.c",
              "edgedb/protocol/datatypes/record_desc.c",
              "edgedb/protocol/datatypes/tuple.c",
@@ -177,9 +177,9 @@ setuptools.setup(
              "edgedb/protocol/datatypes/hash.c",
              "edgedb/protocol/datatypes/array.c",
              "edgedb/protocol/datatypes/repr.c",
-             "edgedb/protocol/protocol.pyx"],
+             "edgedb/protocol/aprotocol.pyx"],
             extra_compile_args=CFLAGS,
-            extra_link_args=LDFLAGS)
+            extra_link_args=LDFLAGS),
     ],
     cmdclass={'build_ext': build_ext},
     test_suite='tests.suite',

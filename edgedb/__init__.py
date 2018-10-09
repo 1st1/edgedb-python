@@ -24,11 +24,11 @@ import getpass
 import os
 import time
 
-from edgedb.protocol.protocol import CodecsRegistry as _CodecsRegistry
+from edgedb.protocol.aprotocol import CodecsRegistry as _CodecsRegistry
 
-from edgedb.protocol.protocol import Tuple, NamedTuple  # NoQA
-from edgedb.protocol.protocol import Set, Object, Array  # NoQA
-from edgedb.protocol.protocol import Protocol
+from edgedb.protocol.aprotocol import Tuple, NamedTuple  # NoQA
+from edgedb.protocol.aprotocol import Set, Object, Array  # NoQA
+from edgedb.protocol.aprotocol import Protocol
 
 
 _ConnectionParameters = collections.namedtuple(
@@ -58,7 +58,7 @@ class Connection:
 
     async def fetch(self, query, *args, **kwargs):
         st = await self._protocol.prepare('', query)
-        return await self._protocol.bind_execute(st, args, kwargs)
+        return await self._protocol.execute(st, args, kwargs)
 
     async def close(self):
         self._protocol.abort()
@@ -110,9 +110,7 @@ async def connect(*,
 
         last_ex = None
         for h in host:
-            connected_fut = loop.create_future()
-            protocol_factory = lambda: Protocol((h, port), connected_fut,
-                                                con_param, loop)
+            protocol_factory = lambda: Protocol((h, port), con_param, loop)
 
             if h.startswith('/'):
                 # UNIX socket name
@@ -132,7 +130,7 @@ async def connect(*,
 
         if last_ex is None:
             try:
-                await connected_fut
+                await pr.connect()
             except BaseException as ex:
                 tr.close()
                 last_ex = ex

@@ -22,16 +22,9 @@ cdef class PreparedStatementState:
         readonly str name
         readonly str query
         readonly bint closed
-        readonly bytes args_desc
-        readonly bytes row_desc
 
-        CodecsRegistry _c
         BaseCodec _dec
         BaseCodec _enc
 
-    cdef _set_args_desc(self, bytes data)
-    cdef _set_row_desc(self, bytes data)
-
     cdef _encode_args(self, args, kwargs)
-
     cdef _decode_row(self, const char* cbuf, ssize_t buf_len)
