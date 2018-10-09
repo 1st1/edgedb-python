@@ -54,7 +54,7 @@ cdef class CoreProtocol:
             char mtype
             ProtocolState state
 
-        while self.buffer.has_message() == 1:
+        while self.buffer.take_message() == 1:
             mtype = self.buffer.get_message_type()
             state = self.state
 
@@ -127,7 +127,7 @@ cdef class CoreProtocol:
                 if self._skip_discard:
                     self._skip_discard = False
                 else:
-                    self.buffer.discard_message()
+                    self.buffer.finish_message()
 
     cdef _process__auth(self, char mtype):
         if mtype == b'Y':
@@ -225,7 +225,7 @@ cdef class CoreProtocol:
         if self._discard_data:
             while True:
                 buf.consume_message()
-                if not buf.has_message() or buf.get_message_type() != b'D':
+                if not buf.take_message_type(b'D'):
                     self._skip_discard = True
                     return
 

@@ -173,6 +173,13 @@ cdef class CodecsRegistry:
         else:
             raise NotImplementedError
 
+    cdef has_codec(self, bytes type_id):
+        return type_id in self.codecs
+
+    cdef BaseCodec get_codec(self, bytes type_id):
+        codec = self.codecs[type_id]
+        return <BaseCodec>codec
+
     cdef BaseCodec build_codec(self, bytes spec):
         cdef:
             FRBuffer buf

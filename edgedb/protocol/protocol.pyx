@@ -98,6 +98,12 @@ cdef class BaseProtocol(CoreProtocol):
         # PQTRANS_INERROR = idle, within failed transaction
         return self.xact_status in (PQTRANS_INTRANS, PQTRANS_INERROR)
 
+    cdef CodecsRegistry get_codecs_registry(self):
+        reg = self.connection._codecs_registry
+        if reg is None:
+            raise RuntimeError('unset codecs registry')
+        return <CodecsRegistry>reg
+
     cdef inline resume_reading(self):
         if not self.is_reading:
             self.is_reading = True
@@ -130,10 +136,16 @@ cdef class BaseProtocol(CoreProtocol):
 
     @cython.iterable_coroutine
     async def prepare(self, stmt_name, query):
+        cdef:
+            CodecsRegistry reg = self.get_codecs_registry()
+
         waiter = self._new_waiter(None)
         self.statement = PreparedStatementState(stmt_name, query)
         self._prepare(stmt_name, query)  # network op
-        return await waiter
+
+        in_type_id, out_type_id = await waiter
+        if reg.has_codec(in_type_id):
+            self.statement.set_in_codec(reg.get_codec(in_type_id))
 
     cdef _on_result__prepare(self, object waiter):
         if PG_DEBUG:
@@ -141,11 +153,11 @@ cdef class BaseProtocol(CoreProtocol):
                 raise RuntimeError(
                     '_on_result__prepare: statement is None')
 
-        if self.result_param_desc is not None:
-            self.statement._set_args_desc(self.result_param_desc)
-        if self.result_row_desc is not None:
-            self.statement._set_row_desc(self.result_row_desc)
-        waiter.set_result(self.statement)
+        # if self.result_param_desc is not None:
+        #     self.statement._set_args_desc(self.result_param_desc)
+        # if self.result_row_desc is not None:
+        #     self.statement._set_row_desc(self.result_row_desc)
+        waiter.set_result((self.result_param_desc, self.result_row_desc))
 
     @cython.iterable_coroutine
     async def bind_execute(self, statement, args, kwargs):

@@ -24,6 +24,8 @@ import getpass
 import os
 import time
 
+from edgedb.protocol.protocol import CodecsRegistry as _CodecsRegistry
+
 from edgedb.protocol.protocol import Tuple, NamedTuple  # NoQA
 from edgedb.protocol.protocol import Set, Object, Array  # NoQA
 from edgedb.protocol.protocol import Protocol
@@ -47,6 +49,9 @@ class Connection:
         self._loop = loop
         self._transport = transport
         self._protocol = protocol
+        self._codecs_registry = _CodecsRegistry()
+
+        self._protocol.set_connection(self)
 
     async def execute(self, script):
         return await self._protocol.execute(script)

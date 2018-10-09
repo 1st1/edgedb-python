@@ -33,3 +33,6 @@ cdef class CodecsRegistry:
 
     cdef BaseCodec _build_codec(self, FRBuffer *spec, list codecs_list)
     cdef BaseCodec build_codec(self, bytes spec)
+
+    cdef has_codec(self, bytes type_id)
+    cdef BaseCodec get_codec(self, bytes type_id)

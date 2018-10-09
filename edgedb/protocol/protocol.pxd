@@ -64,6 +64,8 @@ cdef class BaseProtocol(CoreProtocol):
 
         readonly uint64_t queries_count
 
+    cdef CodecsRegistry get_codecs_registry(self)
+
     cdef _get_timeout_impl(self, timeout)
     cdef _check_state(self)
     cdef _new_waiter(self, timeout)
