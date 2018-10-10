@@ -397,7 +397,7 @@ cdef class Protocol:
     cpdef abort(self):
         pass
 
-    cdef write(self, buf):
+    cdef write(self, WriteBuffer buf):
         self.transport.write(memoryview(buf))
 
     async def wait_for_message(self):

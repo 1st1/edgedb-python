@@ -70,7 +70,7 @@ cdef class Protocol:
 
     cdef CodecsRegistry get_codecs_registry(self)
     cdef get_connection(self)
-    cdef write(self, buf)
+    cdef write(self, WriteBuffer buf)
     cpdef abort(self)
     cdef handle_error_message(self)
 
