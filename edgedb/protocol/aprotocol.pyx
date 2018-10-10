@@ -87,6 +87,8 @@ cdef class Protocol:
             BaseCodec in_type = None
             BaseCodec out_type = None
             int16_t type_size
+            bytes in_type_id
+            bytes out_type_id
 
         if not self.connected:
             raise RuntimeError('not connected')
@@ -107,8 +109,8 @@ cdef class Protocol:
 
             try:
                 if mtype == b'1':
-                    in_type_id = self.buffer.read_cstr()
-                    out_type_id = self.buffer.read_cstr()
+                    in_type_id = self.buffer.read_bytes(16)
+                    out_type_id = self.buffer.read_bytes(16)
                     break
 
                 else:
