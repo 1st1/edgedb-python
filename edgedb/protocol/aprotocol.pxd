@@ -55,6 +55,7 @@ cdef class Protocol:
         object transport
 
         bint connected
+        object connected_fut
         object conref
 
         object loop
@@ -76,3 +77,5 @@ cdef class Protocol:
     cdef parse_data_messages(self, PreparedStatementState stmt, result)
     cdef parse_error_message(self)
     cdef parse_sync_message(self)
+
+    cdef fallthrough(self)

@@ -97,6 +97,7 @@ cdef class Protocol:
         buf.write_utf8(stmt_name)
         buf.write_utf8(query)
         buf.end_message()
+        buf.write_bytes(FLUSH_MESSAGE)
         self.write(buf)
 
         while True:
@@ -111,8 +112,7 @@ cdef class Protocol:
                     break
 
                 else:
-                    raise RuntimeError(
-                        f'unsupported reply to prepare message {chr(mtype)!r}')
+                    self.fallthrough()
             finally:
                 self.buffer.finish_message()
 
@@ -139,6 +139,7 @@ cdef class Protocol:
             if out_type is None:
                 buf.write_bytes(out_type_id)
             buf.end_message()
+            buf.write_bytes(FLUSH_MESSAGE)
             self.write(buf)
 
             while True:
@@ -162,9 +163,8 @@ cdef class Protocol:
                         break
 
                     else:
-                        raise RuntimeError(
-                            f'unsupported reply to describe message '
-                            f'{chr(mtype)!r}')
+                        self.fallthrough()
+
                 finally:
                     self.buffer.finish_message()
 
@@ -211,8 +211,8 @@ cdef class Protocol:
                     return result
 
                 else:
-                    raise RuntimeError(
-                        f'unsupported reply to execute message {chr(mtype)!r}')
+                    self.fallthrough()
+
             finally:
                 self.buffer.finish_message()
 
@@ -278,15 +278,25 @@ cdef class Protocol:
                 # ReadyForQuery
                 self.parse_sync_message()
                 if self.xact_status == PQTRANS_IDLE:
+                    self.connected = True
                     return
                 else:
                     raise RuntimeError('non-idle status after connect')
 
             else:
-                raise RuntimeError(
-                    f'unsupported reply to describe message {chr(mtype)!r}')
+                self.fallthrough()
 
             self.buffer.finish_message()
+
+    cdef fallthrough(self):
+        cdef:
+            char mtype = self.buffer.get_message_type()
+
+        # TODO:
+        # * handle Notice and ServerStatus messages here
+
+        raise RuntimeError(
+            f'unexpected message type {chr(mtype)!r}')
 
     cdef parse_data_messages(self, PreparedStatementState stmt, result):
         cdef:
@@ -434,6 +444,7 @@ cdef class Protocol:
 ## etc
 
 cdef bytes SYNC_MESSAGE = bytes(WriteBuffer.new_message(b'S').end_message())
+cdef bytes FLUSH_MESSAGE = bytes(WriteBuffer.new_message(b'H').end_message())
 
 
 ## Other exports
