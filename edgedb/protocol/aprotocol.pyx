@@ -61,6 +61,7 @@ cdef class Protocol:
 
         self.loop = loop
         self.transport = None
+        self.connected_fut = loop.create_future()
 
         self.addr = addr
         self.con_params = con_params
@@ -87,6 +88,8 @@ cdef class Protocol:
             BaseCodec out_type = None
             int16_t type_size
 
+        if not self.connected:
+            raise RuntimeError('not connected')
         if stmt_name:
             raise RuntimeError('named statements are not yet supported')
 
@@ -172,6 +175,10 @@ cdef class Protocol:
             bytes bind_args
             WriteBuffer packet
             WriteBuffer buf
+            char mtype
+
+        if not self.connected:
+            raise RuntimeError('not connected')
 
         bind_args = stmt._encode_args(args, kwargs)
 
@@ -219,8 +226,12 @@ cdef class Protocol:
             char mtype
             int32_t status
 
+        if self.connected_fut is not None:
+            await self.connected_fut
         if self.connected:
             raise RuntimeError('already connected')
+        if self.transport is None:
+            raise RuntimeError('no transport object in connect()')
 
         # protocol version
         ver_buf = WriteBuffer()
@@ -389,8 +400,14 @@ cdef class Protocol:
         if self.transport is not None:
             raise RuntimeError('connection_made: invalid connection status')
         self.transport = transport
+        self.connected_fut.set_result(True)
+        self.connected_fut = None
 
     def connection_lost(self, exc):
+        if self.connected_fut is not None and not self.connected_fut.done():
+            self.connected_fut.set_exception(ConnectionAbortedError())
+            return
+
         if self.msg_waiter is not None:
             self.msg_waiter.set_exception(ConnectionAbortedError())
             self.msg_waiter = None
