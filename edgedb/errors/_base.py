@@ -1,0 +1,101 @@
+#
+# This source file is part of the EdgeDB open source project.
+#
+# Copyright 2016-present MagicStack Inc. and the EdgeDB authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+__all__ = (
+    'EdgeDBError',
+    'UnknownEdgeDBError',
+)
+
+
+class EdgeDBErrorMeta(type):
+
+    _base_class_index = {}
+    _index = {}
+
+    def __new__(mcls, name, bases, dct):
+        cls = super().__new__(mcls, name, bases, dct)
+
+        code = dct.get('_code')
+        if code is not None:
+            EdgeDBErrorMeta._index[code] = cls
+
+            # If it's a base class add it to the base class index
+            b1, b2, b3, b4 = _decode(code)
+            if b1 == 0 or b2 == 0 or b3 == 0 or b4 == 0:
+                EdgeDBErrorMeta._base_class_index[(b1, b2, b3, b4)] = cls
+
+        return cls
+
+
+class EdgeDBError(Exception, metaclass=EdgeDBErrorMeta):
+
+    _code = None
+
+    def __init__(self, *args, **kwargs):
+        if type(self) is EdgeDBError:
+            raise RuntimeError(
+                'EdgeDBError is not supposed to be instantiated directly')
+        super().__init__(*args, **kwargs)
+
+    def get_code(self):
+        return self._code
+
+    @staticmethod
+    def _from_code(code, *args, **kwargs):
+        cls = _lookup_error_cls(code)
+        exc = cls(*args, **kwargs)
+        exc._code = code
+        return exc
+
+
+class UnknownEdgeDBError(EdgeDBError):
+
+    def get_code(self):
+        if self._code is None:
+            raise RuntimeError(
+                f'{type(self)} was created without an error code')
+        return self._code
+
+
+def _lookup_error_cls(code: int):
+    try:
+        return EdgeDBErrorMeta._index[code]
+    except KeyError:
+        pass
+
+    b1, b2, b3, _ = _decode(code)
+
+    try:
+        return EdgeDBErrorMeta._base_class_index[(b1, b2, b3, 0)]
+    except KeyError:
+        pass
+    try:
+        return EdgeDBErrorMeta._base_class_index[(b1, b2, 0, 0)]
+    except KeyError:
+        pass
+    try:
+        return EdgeDBErrorMeta._base_class_index[(b1, 0, 0, 0)]
+    except KeyError:
+        pass
+
+    return UnknownEdgeDBError
+
+
+def _decode(code: int):
+    return tuple(code.to_bytes(4, 'big'))
