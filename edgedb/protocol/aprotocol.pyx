@@ -350,7 +350,7 @@ cdef class Protocol:
             if code == 0:
                 break
 
-            message = self.buffer.read_cstr()
+            message = self.buffer.read_null_str()
 
             parsed[chr(code)] = message.decode()
 
