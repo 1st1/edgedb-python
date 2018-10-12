@@ -29,14 +29,27 @@ include "./array.pyx"
 include "./set.pyx"
 
 
+DEF CTYPE_SET = 0
+DEF CTYPE_SHAPE = 1
+DEF CTYPE_BASE_SCALAR = 2
+DEF CTYPE_SCALAR = 3
+DEF CTYPE_TUPLE = 4
+DEF CTYPE_NAMEDTUPLE = 5
+DEF CTYPE_ARRAY = 6
+
+DEF _CODECS_BUILD_CACHE_SIZE = 200
+
+
+
 cdef class CodecsRegistry:
 
-    def __init__(self):
-        self.codecs = {}
+    def __init__(self, *, cache_size=1000):
+        self.codecs_build_cache = LRUMapping(maxsize=_CODECS_BUILD_CACHE_SIZE)
+        self.codecs = LRUMapping(maxsize=cache_size)
 
     cdef BaseCodec _build_codec(self, FRBuffer *spec, list codecs_list):
         cdef:
-            const char *t = frb_read(spec, 1)
+            char t = frb_read(spec, 1)[0]
             bytes tid = frb_read(spec, 16)[:16]
             uint16_t els
             uint16_t i
@@ -46,43 +59,42 @@ cdef class CodecsRegistry:
             BaseCodec sub_codec
 
 
-        res = self.codecs.get(tid)
+        res = self.codecs.get(tid, None)
+        if res is None:
+            res = self.codecs_build_cache.get(tid, None)
         if res is not None:
-            if t[0] == 0:
-                # set
+            # We have a codec for this "tid"; advance the buffer
+            # so that we can process the next codec.
+
+            if t == CTYPE_SET:
                 frb_read(spec, 2)
 
-            elif t[0] == 1:
-                # shape
+            elif t == CTYPE_SHAPE:
                 els = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
                 for i in range(els):
                     frb_read(spec, 1)
                     str_len = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
                     frb_read(spec, str_len + 2)
 
-            elif t[0] == 2:
-                # base scalar
+            elif t == CTYPE_BASE_SCALAR:
                 pass
 
-            elif t[0] == 3:
-                # scalar
+            elif t == CTYPE_SCALAR:
                 frb_read(spec, 2)
 
-            elif t[0] == 4:
+            elif t == CTYPE_TUPLE:
                 # tuple
                 els = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
                 for i in range(els):
                     frb_read(spec, 2)
 
-            elif t[0] == 5:
-                # named tuple
+            elif t == CTYPE_NAMEDTUPLE:
                 els = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
                 for i in range(els):
                     str_len = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
                     frb_read(spec, str_len + 2)
 
-            elif t[0] == 6:
-                # array
+            elif t == CTYPE_ARRAY:
                 frb_read(spec, 2)
 
             else:
@@ -90,14 +102,12 @@ cdef class CodecsRegistry:
 
             return res
 
-        if t[0] == 0:
-            # set
+        if t == CTYPE_SET:
             pos = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
             sub_codec = <BaseCodec>codecs_list[pos]
-            return SetCodec.new(tid, sub_codec)
+            res = SetCodec.new(tid, sub_codec)
 
-        elif t[0] == 1:
-            # shape
+        elif t == CTYPE_SHAPE:
             els = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
             codecs = cpython.PyTuple_New(els)
             names = cpython.PyTuple_New(els)
@@ -120,19 +130,16 @@ cdef class CodecsRegistry:
                 cpython.Py_INCREF(flag)
                 cpython.PyTuple_SetItem(flags, i, flag)
 
-            return ObjectCodec.new(tid, names, flags, codecs)
+            res = ObjectCodec.new(tid, names, flags, codecs)
 
-        elif t[0] == 2:
-            # base scalar
-            return <BaseCodec>BASE_SCALAR_CODECS[tid]
+        elif t == CTYPE_BASE_SCALAR:
+            res = <BaseCodec>BASE_SCALAR_CODECS[tid]
 
-        elif t[0] == 3:
-            # scalar
+        elif t == CTYPE_SCALAR:
             pos = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
-            return <BaseCodec>codecs_list[pos]
+            res = <BaseCodec>codecs_list[pos]
 
-        elif t[0] == 4:
-            # tuple
+        elif t == CTYPE_TUPLE:
             els = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
             codecs = cpython.PyTuple_New(els)
             for i in range(els):
@@ -142,10 +149,9 @@ cdef class CodecsRegistry:
                 cpython.Py_INCREF(sub_codec)
                 cpython.PyTuple_SetItem(codecs, i, sub_codec)
 
-            return TupleCodec.new(tid, codecs)
+            res = TupleCodec.new(tid, codecs)
 
-        elif t[0] == 5:
-            # named tuple
+        elif t == CTYPE_NAMEDTUPLE:
             els = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
             codecs = cpython.PyTuple_New(els)
             names = cpython.PyTuple_New(els)
@@ -162,16 +168,18 @@ cdef class CodecsRegistry:
                 cpython.Py_INCREF(sub_codec)
                 cpython.PyTuple_SetItem(codecs, i, sub_codec)
 
-            return NamedTupleCodec.new(tid, names, codecs)
+            res = NamedTupleCodec.new(tid, names, codecs)
 
-        elif t[0] == 6:
-            # array
+        elif t == CTYPE_ARRAY:
             pos = <uint16_t>hton.unpack_int16(frb_read(spec, 2))
             sub_codec = <BaseCodec>codecs_list[pos]
-            return ArrayCodec.new(tid, sub_codec)
+            res = ArrayCodec.new(tid, sub_codec)
 
         else:
             raise NotImplementedError
+
+        self.codecs_build_cache[tid] = res
+        return res
 
     cdef has_codec(self, bytes type_id):
         return type_id in self.codecs

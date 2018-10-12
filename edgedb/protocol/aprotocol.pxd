@@ -33,6 +33,7 @@ from edgedb.pgproto cimport pgproto
 from edgedb.pgproto.debug cimport PG_DEBUG
 
 
+include "./lru.pxd"
 include "./codecs/codecs.pxd"
 include "./prepared_stmt.pxd"
 

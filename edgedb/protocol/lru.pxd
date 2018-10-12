@@ -17,23 +17,12 @@
 #
 
 
-include "./base.pxd"
-include "./scalar.pxd"
-include "./tuple.pxd"
-include "./namedtuple.pxd"
-include "./object.pxd"
-include "./array.pxd"
-include "./set.pxd"
-
-
-cdef class CodecsRegistry:
+cdef class LRUMapping:
 
     cdef:
-        LRUMapping codecs_build_cache
-        LRUMapping codecs
+        object _dict
+        int _maxsize
+        object _dict_move_to_end
+        object _dict_get
 
-    cdef BaseCodec _build_codec(self, FRBuffer *spec, list codecs_list)
-    cdef BaseCodec build_codec(self, bytes spec)
-
-    cdef has_codec(self, bytes type_id)
-    cdef BaseCodec get_codec(self, bytes type_id)
+    cdef get(self, key, default)

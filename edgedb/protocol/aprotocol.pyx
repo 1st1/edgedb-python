@@ -50,6 +50,7 @@ from . cimport datatypes
 from . cimport cpythonx
 
 include "./consts.pxi"
+include "./lru.pyx"
 include "./codecs/codecs.pyx"
 include "./prepared_stmt.pyx"
 
