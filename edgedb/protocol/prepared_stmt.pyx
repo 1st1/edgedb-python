@@ -28,30 +28,24 @@ cdef class PreparedStatementState:
         self._dec = dec
         self._enc = enc
 
-    cdef _encode_args(self, args, kwargs):
+    cdef _encode_args(self, WriteBuffer buf, args, kwargs):
         if args and kwargs:
             raise RuntimeError(
                 'either positional or named arguments are supported; '
                 'not both')
 
-        cdef WriteBuffer buf
-        buf = WriteBuffer.new()
-
         if kwargs:
-            if not isinstance(self._enc, NamedTupleCodec):
+            if type(self._enc) is not NamedTupleCodec:
                 raise RuntimeError(
                     'expected positional arguments, got named arguments')
 
             (<NamedTupleCodec>self._enc).encode_kwargs(buf, kwargs)
 
         else:
-            if not isinstance(self._enc, TupleCodec):
+            if type(self._enc) is not TupleCodec:
                 raise RuntimeError(
                     'expected named arguments, got positional arguments')
             self._enc.encode(buf, args)
-
-        bind_args = bytes(buf)
-        return bind_args
 
     cdef _decode_row(self, const char* cbuf, ssize_t buf_len):
         cdef:

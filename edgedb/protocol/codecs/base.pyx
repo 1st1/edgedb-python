@@ -77,6 +77,10 @@ cdef class BaseRecordCodec(BaseCodec):
                     type(obj).__name__))
 
         objlen = len(obj)
+        if objlen == 0:
+            buf.write_bytes(b'\x00\x00\x00\x04\x00\x00\x00\x00')
+            return
+
         if objlen > _MAXINT32:
             raise ValueError('too many elements for a tuple')
 

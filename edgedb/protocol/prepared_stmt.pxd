@@ -26,5 +26,5 @@ cdef class PreparedStatementState:
         BaseCodec _dec
         BaseCodec _enc
 
-    cdef _encode_args(self, args, kwargs)
+    cdef _encode_args(self, WriteBuffer buf, args, kwargs)
     cdef _decode_row(self, const char* cbuf, ssize_t buf_len)

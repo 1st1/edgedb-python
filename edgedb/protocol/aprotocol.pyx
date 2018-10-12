@@ -170,11 +170,10 @@ cdef class Protocol:
                 finally:
                     self.buffer.finish_message()
 
-        return PreparedStatementState(stmt_name, query, out_type, in_type)
+        return PreparedStatementState(stmt_name, query, in_type, out_type)
 
     async def execute(self, PreparedStatementState stmt, args, kwargs):
         cdef:
-            bytes bind_args
             WriteBuffer packet
             WriteBuffer buf
             char mtype
@@ -182,13 +181,11 @@ cdef class Protocol:
         if not self.connected:
             raise RuntimeError('not connected')
 
-        bind_args = stmt._encode_args(args, kwargs)
-
         packet = WriteBuffer.new()
 
         buf = WriteBuffer.new_message(b'E')
         buf.write_utf8(stmt.name)
-        buf.write_bytes(bind_args)
+        stmt._encode_args(buf, args, kwargs)
         packet.write_buffer(buf.end_message())
 
         packet.write_bytes(SYNC_MESSAGE)

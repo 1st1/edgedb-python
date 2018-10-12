@@ -147,8 +147,12 @@ cdef inline bint _is_trivial_container(object obj):
 
 cdef inline _is_array_iterable(object obj):
     return (
-        isinstance(obj, IterableABC) and
-        isinstance(obj, SizedABC) and
-        not _is_trivial_container(obj) and
-        not isinstance(obj, MappingABC)
+        cpython.PyTuple_Check(obj) or
+        cpython.PyList_Check(obj) or
+        (
+            isinstance(obj, IterableABC) and
+            isinstance(obj, SizedABC) and
+            not _is_trivial_container(obj) and
+            not isinstance(obj, MappingABC)
+        )
     )
