@@ -81,7 +81,6 @@ cdef class Protocol:
 
     async def prepare(self, stmt_name, str query):
         cdef:
-            WriteBuffer packet
             WriteBuffer buf
             char mtype
             CodecsRegistry reg
@@ -126,21 +125,9 @@ cdef class Protocol:
             out_type = reg.get_codec(out_type_id)
 
         if in_type is None or out_type is None:
-            n = 0
-            if in_type is None:
-                n += 1
-            if out_type is None:
-                n += 1
-
             buf = WriteBuffer.new_message(b'D')
             buf.write_byte(b'T')
             buf.write_utf8(stmt_name)
-            buf.write_int16(n)
-
-            if in_type is None:
-                buf.write_bytes(in_type_id)
-            if out_type is None:
-                buf.write_bytes(out_type_id)
             buf.end_message()
             buf.write_bytes(FLUSH_MESSAGE)
             self.write(buf)
@@ -152,16 +139,15 @@ cdef class Protocol:
 
                 try:
                     if mtype == b'T':
-
+                        type_size = self.buffer.read_int16()
+                        type_data = self.buffer.read_bytes(type_size)
                         if in_type is None:
-                            type_size = self.buffer.read_int16()
-                            in_type_data = self.buffer.read_bytes(type_size)
-                            in_type = reg.build_codec(in_type_data)
+                            in_type = reg.build_codec(type_data)
 
+                        type_size = self.buffer.read_int16()
+                        type_data = self.buffer.read_bytes(type_size)
                         if out_type is None:
-                            type_size = self.buffer.read_int16()
-                            out_type_data = self.buffer.read_bytes(type_size)
-                            out_type = reg.build_codec(out_type_data)
+                            out_type = reg.build_codec(type_data)
 
                         break
 

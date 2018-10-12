@@ -53,9 +53,6 @@ class Connection:
 
         self._protocol.set_connection(self)
 
-    async def execute(self, script):
-        return await self._protocol.execute(script)
-
     async def fetch(self, query, *args, **kwargs):
         st = await self._protocol.prepare('', query)
         return await self._protocol.execute(st, args, kwargs)
