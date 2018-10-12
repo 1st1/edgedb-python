@@ -19,7 +19,6 @@
 
 __all__ = (
     'EdgeDBError',
-    'UnknownEdgeDBError',
 )
 
 
@@ -47,12 +46,6 @@ class EdgeDBError(Exception, metaclass=EdgeDBErrorMeta):
 
     _code = None
 
-    def __init__(self, *args, **kwargs):
-        if type(self) is EdgeDBError:
-            raise RuntimeError(
-                'EdgeDBError is not supposed to be instantiated directly')
-        super().__init__(*args, **kwargs)
-
     def get_code(self):
         return self._code
 
@@ -62,15 +55,6 @@ class EdgeDBError(Exception, metaclass=EdgeDBErrorMeta):
         exc = cls(*args, **kwargs)
         exc._code = code
         return exc
-
-
-class UnknownEdgeDBError(EdgeDBError):
-
-    def get_code(self):
-        if self._code is None:
-            raise RuntimeError(
-                f'{type(self)} was created without an error code')
-        return self._code
 
 
 def _lookup_error_cls(code: int):
@@ -94,7 +78,7 @@ def _lookup_error_cls(code: int):
     except KeyError:
         pass
 
-    return UnknownEdgeDBError
+    return EdgeDBError
 
 
 def _decode(code: int):

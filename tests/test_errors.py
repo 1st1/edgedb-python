@@ -58,4 +58,4 @@ class TestErrors(unittest.TestCase):
 
         e = new(0x_F9_1E_FF_F1, 'aa')
         self.assertEqual(e.get_code(), 0x_F9_1E_FF_F1)
-        self.assertIs(type(e), errors.UnknownEdgeDBError)
+        self.assertIs(type(e), errors.EdgeDBError)
