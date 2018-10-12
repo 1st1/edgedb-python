@@ -23,6 +23,9 @@ cdef class BaseCodec:
         bytes   tid
         str     name
 
+    cdef inline bytes get_tid(self):
+        return self.tid
+
     cdef encode(self, WriteBuffer buf, object obj)
     cdef decode(self, FRBuffer *buf)
 

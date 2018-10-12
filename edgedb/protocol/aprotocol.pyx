@@ -85,12 +85,12 @@ cdef class Protocol:
 
         self.xact_status = PQTRANS_UNKNOWN
 
-    async def _prepare(self, CodecsRegistry reg, str query):
+    async def _parse(self, CodecsRegistry reg, str query):
         cdef:
             WriteBuffer buf
             char mtype
-            BaseCodec in_type = None
-            BaseCodec out_type = None
+            BaseCodec in_dc = None
+            BaseCodec out_dc = None
             int16_t type_size
             bytes in_type_id
             bytes out_type_id
@@ -122,11 +122,11 @@ cdef class Protocol:
                 self.buffer.finish_message()
 
         if reg.has_codec(in_type_id):
-            in_type = reg.get_codec(in_type_id)
+            in_dc = reg.get_codec(in_type_id)
         if reg.has_codec(out_type_id):
-            out_type = reg.get_codec(out_type_id)
+            out_dc = reg.get_codec(out_type_id)
 
-        if in_type is None or out_type is None:
+        if in_dc is None or out_dc is None:
             buf = WriteBuffer.new_message(b'D')
             buf.write_byte(b'T')
             buf.write_utf8('')  # stmt_name
@@ -141,16 +141,7 @@ cdef class Protocol:
 
                 try:
                     if mtype == b'T':
-                        type_size = self.buffer.read_int16()
-                        type_data = self.buffer.read_bytes(type_size)
-                        if in_type is None:
-                            in_type = reg.build_codec(type_data)
-
-                        type_size = self.buffer.read_int16()
-                        type_data = self.buffer.read_bytes(type_size)
-                        if out_type is None:
-                            out_type = reg.build_codec(type_data)
-
+                        in_dc, out_dc = self.parse_describe_type_message(reg)
                         break
 
                     else:
@@ -159,7 +150,7 @@ cdef class Protocol:
                 finally:
                     self.buffer.finish_message()
 
-        return in_type, out_type
+        return in_dc, out_dc
 
     async def _execute(self, BaseCodec in_dc, BaseCodec out_dc, args, kwargs):
         cdef:
@@ -206,6 +197,66 @@ cdef class Protocol:
 
         return result
 
+    async def _opportunistic_execute(self, CodecsRegistry reg,
+                                     BaseCodec in_dc, BaseCodec out_dc,
+                                     str query, args, kwargs):
+        cdef:
+            WriteBuffer packet
+            WriteBuffer buf
+            char mtype
+            bint re_exec
+            object result
+
+        buf = WriteBuffer.new_message(b'O')
+        buf.write_utf8(query)
+        buf.write_bytes(in_dc.get_tid())
+        buf.write_bytes(out_dc.get_tid())
+        self.encode_args(in_dc, buf, args, kwargs)
+        buf.end_message()
+
+        packet = WriteBuffer.new()
+        packet.write_buffer(buf)
+        packet.write_bytes(SYNC_MESSAGE)
+        self.write(packet)
+
+        result = None
+        re_exec = False
+        while True:
+            if not self.buffer.take_message():
+                await self.wait_for_message()
+            mtype = self.buffer.get_message_type()
+
+            try:
+                if mtype == b'T':
+                    # our in/out type spec is out-dated
+                    in_dc, out_dc = self.parse_describe_type_message(reg)
+                    re_exec = True
+
+                elif mtype == b'D':
+                    assert not re_exec
+                    if result is None:
+                        result = datatypes.EdgeSet_New(0)
+                    self.parse_data_messages(out_dc, result)
+
+                elif mtype == b'C':  # CommandComplete
+                    self.buffer.discard_message()
+
+                elif mtype == b'Z':
+                    self.parse_sync_message()
+                    if not re_exec:
+                        return result
+                    else:
+                        break
+
+                else:
+                    self.fallthrough()
+
+            finally:
+                self.buffer.finish_message()
+
+        assert re_exec
+        return await self._execute(in_dc, out_dc, args, kwargs)
+
     async def execute_anonymous(self, CodecsRegistry reg, QueryCache qc,
                                 str query, args, kwargs):
         cdef:
@@ -217,16 +268,23 @@ cdef class Protocol:
         codecs = qc.get(query)
         if codecs is None:
             cached = False
-            codecs = await self._prepare(reg, query)
 
-        in_dc = <BaseCodec>codecs[0]
-        out_dc = <BaseCodec>codecs[1]
+            codecs = await self._parse(reg, query)
 
-        if not cached:
-            qc.set(query, in_dc, out_dc)
+            in_dc = <BaseCodec>codecs[0]
+            out_dc = <BaseCodec>codecs[1]
 
-        return await self._execute(in_dc, out_dc, args, kwargs)
+            if not cached:
+                qc.set(query, in_dc, out_dc)
 
+            return await self._execute(in_dc, out_dc, args, kwargs)
+
+        else:
+            in_dc = <BaseCodec>codecs[0]
+            out_dc = <BaseCodec>codecs[1]
+
+            return await self._opportunistic_execute(
+                reg, in_dc, out_dc, query, args, kwargs)
 
     async def connect(self):
         cdef:
@@ -326,6 +384,37 @@ cdef class Protocol:
                 raise RuntimeError(
                     'expected named arguments, got positional arguments')
             in_dc.encode(buf, args)
+
+    cdef parse_describe_type_message(self, CodecsRegistry reg):
+        assert self.buffer.get_message_type() == b'T'
+
+        cdef:
+            bytes type_id
+            int16_t type_size
+            bytes type_data
+
+        try:
+            type_id = self.buffer.read_bytes(16)
+            type_size = self.buffer.read_int16()
+            type_data = self.buffer.read_bytes(type_size)
+
+            if reg.has_codec(type_id):
+                in_dc = reg.get_codec(type_id)
+            else:
+                in_dc = reg.build_codec(type_data)
+
+            type_id = self.buffer.read_bytes(16)
+            type_size = self.buffer.read_int16()
+            type_data = self.buffer.read_bytes(type_size)
+
+            if reg.has_codec(type_id):
+                out_dc = reg.get_codec(type_id)
+            else:
+                out_dc = reg.build_codec(type_data)
+        finally:
+            self.buffer.finish_message()
+
+        return in_dc, out_dc
 
     cdef parse_data_messages(self, BaseCodec out_dc, result):
         cdef:

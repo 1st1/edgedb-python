@@ -75,6 +75,7 @@ cdef class Protocol:
     cdef parse_data_messages(self, BaseCodec out_dc, result)
     cdef parse_error_message(self)
     cdef parse_sync_message(self)
+    cdef parse_describe_type_message(self, CodecsRegistry reg)
 
     cdef fallthrough(self)
 
