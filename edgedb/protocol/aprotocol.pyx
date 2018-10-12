@@ -23,7 +23,6 @@ cimport cpython
 import asyncio
 import collections
 import time
-import weakref
 
 from edgedb.pgproto.pgproto cimport (
     WriteBuffer,
@@ -52,7 +51,20 @@ from . cimport cpythonx
 include "./consts.pxi"
 include "./lru.pyx"
 include "./codecs/codecs.pyx"
-include "./prepared_stmt.pyx"
+
+
+cdef class QueryCache:
+
+    def __init__(self, *, cache_size=1000):
+        self.queries = LRUMapping(maxsize=cache_size)
+
+    cdef get(self, str query):
+        return self.queries.get(query, None)
+
+    cdef set(self, str query, BaseCodec in_type, BaseCodec out_type):
+        assert in_type is not None
+        assert out_type is not None
+        self.queries[query] = (in_type, out_type)
 
 
 cdef class Protocol:
@@ -72,18 +84,11 @@ cdef class Protocol:
         self.backend_secret = None
 
         self.xact_status = PQTRANS_UNKNOWN
-        self.conref = None
 
-    ## APIs for edgedb.Connection
-
-    def set_connection(self, connection):
-        self.conref = weakref.ref(connection)
-
-    async def prepare(self, stmt_name, str query):
+    async def _prepare(self, CodecsRegistry reg, str query):
         cdef:
             WriteBuffer buf
             char mtype
-            CodecsRegistry reg
             BaseCodec in_type = None
             BaseCodec out_type = None
             int16_t type_size
@@ -92,11 +97,9 @@ cdef class Protocol:
 
         if not self.connected:
             raise RuntimeError('not connected')
-        if stmt_name:
-            raise RuntimeError('named statements are not yet supported')
 
         buf = WriteBuffer.new_message(b'P')
-        buf.write_utf8(stmt_name)
+        buf.write_utf8('')  # stmt_name
         buf.write_utf8(query)
         buf.end_message()
         buf.write_bytes(FLUSH_MESSAGE)
@@ -118,7 +121,6 @@ cdef class Protocol:
             finally:
                 self.buffer.finish_message()
 
-        reg = self.get_codecs_registry()
         if reg.has_codec(in_type_id):
             in_type = reg.get_codec(in_type_id)
         if reg.has_codec(out_type_id):
@@ -127,7 +129,7 @@ cdef class Protocol:
         if in_type is None or out_type is None:
             buf = WriteBuffer.new_message(b'D')
             buf.write_byte(b'T')
-            buf.write_utf8(stmt_name)
+            buf.write_utf8('')  # stmt_name
             buf.end_message()
             buf.write_bytes(FLUSH_MESSAGE)
             self.write(buf)
@@ -157,9 +159,9 @@ cdef class Protocol:
                 finally:
                     self.buffer.finish_message()
 
-        return PreparedStatementState(stmt_name, query, in_type, out_type)
+        return in_type, out_type
 
-    async def execute(self, PreparedStatementState stmt, args, kwargs):
+    async def _execute(self, BaseCodec in_dc, BaseCodec out_dc, args, kwargs):
         cdef:
             WriteBuffer packet
             WriteBuffer buf
@@ -171,8 +173,8 @@ cdef class Protocol:
         packet = WriteBuffer.new()
 
         buf = WriteBuffer.new_message(b'E')
-        buf.write_utf8(stmt.name)
-        stmt._encode_args(buf, args, kwargs)
+        buf.write_utf8('')  # stmt_name
+        self.encode_args(in_dc, buf, args, kwargs)
         packet.write_buffer(buf.end_message())
 
         packet.write_bytes(SYNC_MESSAGE)
@@ -187,7 +189,7 @@ cdef class Protocol:
 
             try:
                 if mtype == b'D':
-                    self.parse_data_messages(stmt, result)
+                    self.parse_data_messages(out_dc, result)
 
                 elif mtype == b'C':  # CommandComplete
                     self.buffer.discard_message()
@@ -203,6 +205,28 @@ cdef class Protocol:
                 self.buffer.finish_message()
 
         return result
+
+    async def execute_anonymous(self, CodecsRegistry reg, QueryCache qc,
+                                str query, args, kwargs):
+        cdef:
+            BaseCodec in_dc
+            BaseCodec out_dc
+            bint cached
+
+        cached = True
+        codecs = qc.get(query)
+        if codecs is None:
+            cached = False
+            codecs = await self._prepare(reg, query)
+
+        in_dc = <BaseCodec>codecs[0]
+        out_dc = <BaseCodec>codecs[1]
+
+        if not cached:
+            qc.set(query, in_dc, out_dc)
+
+        return await self._execute(in_dc, out_dc, args, kwargs)
+
 
     async def connect(self):
         cdef:
@@ -284,12 +308,30 @@ cdef class Protocol:
         raise RuntimeError(
             f'unexpected message type {chr(mtype)!r}')
 
-    cdef parse_data_messages(self, PreparedStatementState stmt, result):
+    cdef encode_args(self, BaseCodec in_dc, WriteBuffer buf, args, kwargs):
+        if args and kwargs:
+            raise RuntimeError(
+                'either positional or named arguments are supported; '
+                'not both')
+
+        if kwargs:
+            if type(in_dc) is not NamedTupleCodec:
+                raise RuntimeError(
+                    'expected positional arguments, got named arguments')
+
+            (<NamedTupleCodec>in_dc).encode_kwargs(buf, kwargs)
+
+        else:
+            if type(in_dc) is not TupleCodec:
+                raise RuntimeError(
+                    'expected named arguments, got positional arguments')
+            in_dc.encode(buf, args)
+
+    cdef parse_data_messages(self, BaseCodec out_dc, result):
         cdef:
             ReadBuffer buf = self.buffer
-            object rows
 
-            decode_row_method decoder = <decode_row_method>stmt._decode_row
+            decode_row_method decoder = <decode_row_method>out_dc.decode
             pgproto.try_consume_message_method try_consume_message = \
                 <pgproto.try_consume_message_method>buf.try_consume_message
             pgproto.take_message_type_method take_message_type = \
@@ -298,6 +340,9 @@ cdef class Protocol:
             const char* cbuf
             ssize_t cbuf_len
             object row
+
+            FRBuffer _rbuf
+            FRBuffer *rbuf = &_rbuf
 
         if PG_DEBUG:
             if buf.get_message_type() != b'D':
@@ -315,15 +360,31 @@ cdef class Protocol:
 
         while take_message_type(buf, b'D'):
             cbuf = try_consume_message(buf, &cbuf_len)
-            if cbuf != NULL:
-                row = decoder(stmt, cbuf, cbuf_len)
-            else:
+            if cbuf == NULL:
                 mem = buf.consume_message()
-                row = decoder(
-                    stmt,
-                    cpython.PyBytes_AS_STRING(mem),
-                    cpython.PyBytes_GET_SIZE(mem))
+                cbuf = cpython.PyBytes_AS_STRING(mem)
+                cbuf_len = cpython.PyBytes_GET_SIZE(mem)
 
+            if PG_DEBUG:
+                frb_init(rbuf, cbuf, cbuf_len)
+
+                flen = hton.unpack_int16(frb_read(rbuf, 2))
+                if flen != 1:
+                    raise RuntimeError(
+                        f'invalid number of columns: expected 1 got {flen}')
+
+                buflen = hton.unpack_int32(frb_read(rbuf, 4))
+                if frb_get_len(rbuf) != buflen:
+                    raise RuntimeError('invalid buffer length')
+            else:
+                # EdgeDB returns rows with one column; Postgres' rows
+                # are encoded as follows:
+                #   2 bytes - int16 - number of coluns
+                #   4 bytes - int32 - every column is prefixed with its length
+                # so we want to skip first 6 bytes:
+                frb_init(rbuf, cbuf + 6, cbuf_len - 6)
+
+            row = decoder(out_dc, rbuf)
             datatypes.EdgeSet_AppendItem(result, row)
 
     cdef parse_error_message(self):
@@ -367,18 +428,6 @@ cdef class Protocol:
         raise RuntimeError(str(exc_details))
 
     ## Private APIs and implementation details
-
-    cdef get_connection(self):
-        return self.conref()
-
-    cdef CodecsRegistry get_codecs_registry(self):
-        con = self.get_connection()
-        if con is None:
-            raise RuntimeError('cannot get codec registry, no connection')
-        reg = con._codecs_registry
-        if reg is None:
-            raise RuntimeError('unset codecs registry')
-        return <CodecsRegistry>reg
 
     cpdef abort(self):
         pass

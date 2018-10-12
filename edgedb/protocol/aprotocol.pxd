@@ -35,10 +35,9 @@ from edgedb.pgproto.debug cimport PG_DEBUG
 
 include "./lru.pxd"
 include "./codecs/codecs.pxd"
-include "./prepared_stmt.pxd"
 
 
-ctypedef object (*decode_row_method)(object, const char*, ssize_t)
+ctypedef object (*decode_row_method)(BaseCodec, FRBuffer *buf)
 
 
 cdef enum TransactionStatus:
@@ -57,7 +56,6 @@ cdef class Protocol:
 
         bint connected
         object connected_fut
-        object conref
 
         object loop
         object msg_waiter
@@ -69,14 +67,22 @@ cdef class Protocol:
 
         TransactionStatus xact_status
 
-    cdef CodecsRegistry get_codecs_registry(self)
-    cdef get_connection(self)
     cdef write(self, WriteBuffer buf)
     cpdef abort(self)
     cdef handle_error_message(self)
 
-    cdef parse_data_messages(self, PreparedStatementState stmt, result)
+    cdef encode_args(self, BaseCodec in_dc, WriteBuffer buf, args, kwargs)
+    cdef parse_data_messages(self, BaseCodec out_dc, result)
     cdef parse_error_message(self)
     cdef parse_sync_message(self)
 
     cdef fallthrough(self)
+
+
+cdef class QueryCache:
+
+    cdef:
+        LRUMapping queries
+
+    cdef get(self, str query)
+    cdef set(self, str query, BaseCodec in_type, BaseCodec out_type)

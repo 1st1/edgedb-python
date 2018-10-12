@@ -25,6 +25,7 @@ import os
 import time
 
 from edgedb.protocol.aprotocol import CodecsRegistry as _CodecsRegistry
+from edgedb.protocol.aprotocol import QueryCache as _QueryCache
 
 from edgedb.protocol.aprotocol import Tuple, NamedTuple  # NoQA
 from edgedb.protocol.aprotocol import Set, Object, Array  # NoQA
@@ -49,13 +50,14 @@ class Connection:
         self._loop = loop
         self._transport = transport
         self._protocol = protocol
-        self._codecs_registry = _CodecsRegistry()
 
-        self._protocol.set_connection(self)
+        self._codecs_registry = _CodecsRegistry()
+        self._query_cache = _QueryCache()
 
     async def fetch(self, query, *args, **kwargs):
-        st = await self._protocol.prepare('', query)
-        return await self._protocol.execute(st, args, kwargs)
+        return await self._protocol.execute_anonymous(
+            self._codecs_registry, self._query_cache,
+            query, args, kwargs)
 
     async def close(self):
         self._protocol.abort()
