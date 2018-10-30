@@ -468,7 +468,7 @@ cdef class Protocol:
             else:
                 # EdgeDB returns rows with one column; Postgres' rows
                 # are encoded as follows:
-                #   2 bytes - int16 - number of coluns
+                #   2 bytes - int16 - number of columns
                 #   4 bytes - int32 - every column is prefixed with its length
                 # so we want to skip first 6 bytes:
                 frb_init(rbuf, cbuf + 6, cbuf_len - 6)
