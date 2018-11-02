@@ -34,12 +34,12 @@ from distutils.command import build_ext as distutils_build_ext
 import setuptools
 
 
-CYTHON_DEPENDENCY = 'Cython==0.28.5'
+CYTHON_DEPENDENCY = 'Cython==0.29.0'
 
 # Minimal dependencies required to test edgedb.
 TEST_DEPENDENCIES = [
     'flake8~=3.5.0',
-    'uvloop>=0.8.0;platform_system!="Windows"',
+    'uvloop>=0.11.3;platform_system!="Windows"',
 ]
 
 # Dependencies required to build documentation.

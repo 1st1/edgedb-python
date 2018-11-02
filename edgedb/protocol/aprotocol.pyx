@@ -48,6 +48,8 @@ from libc.stdint cimport int8_t, uint8_t, int16_t, uint16_t, \
 from . cimport datatypes
 from . cimport cpythonx
 
+from edgedb import errors
+
 include "./consts.pxi"
 include "./lru.pyx"
 include "./codecs/codecs.pyx"
@@ -116,6 +118,10 @@ cdef class Protocol:
                     out_type_id = self.buffer.read_bytes(16)
                     break
 
+                elif mtype == b'E':
+                    # ErrorResponse
+                    self.handle_error_message()
+
                 else:
                     self.fallthrough()
             finally:
@@ -143,6 +149,10 @@ cdef class Protocol:
                     if mtype == b'T':
                         in_dc, out_dc = self.parse_describe_type_message(reg)
                         break
+
+                    elif mtype == b'E':
+                        # ErrorResponse
+                        self.handle_error_message()
 
                     else:
                         self.fallthrough()
@@ -184,6 +194,10 @@ cdef class Protocol:
 
                 elif mtype == b'C':  # CommandComplete
                     self.buffer.discard_message()
+
+                elif mtype == b'E':
+                    # ErrorResponse
+                    self.handle_error_message()
 
                 elif mtype == b'Z':
                     self.parse_sync_message()
@@ -240,6 +254,10 @@ cdef class Protocol:
 
                 elif mtype == b'C':  # CommandComplete
                     self.buffer.discard_message()
+
+                elif mtype == b'E':
+                    # ErrorResponse
+                    self.handle_error_message()
 
                 elif mtype == b'Z':
                     self.parse_sync_message()
@@ -476,23 +494,6 @@ cdef class Protocol:
             row = decoder(out_dc, rbuf)
             datatypes.EdgeSet_AppendItem(result, row)
 
-    cdef parse_error_message(self):
-        cdef:
-            char code
-            bytes message
-            dict parsed = {}
-
-        while True:
-            code = self.buffer.read_byte()
-            if code == 0:
-                break
-
-            message = self.buffer.read_null_str()
-
-            parsed[chr(code)] = message.decode()
-
-        return parsed
-
     cdef parse_sync_message(self):
         cdef char status
 
@@ -512,9 +513,17 @@ cdef class Protocol:
         self.buffer.finish_message()
 
     cdef handle_error_message(self):
+        cdef:
+            uint32_t code
+            str msg
+
         assert self.buffer.get_message_type() == b'E'
-        exc_details = self.parse_error_message()
-        raise RuntimeError(str(exc_details))
+
+        code = <uint32_t>self.buffer.read_int32()
+        msg = self.buffer.read_utf8()
+
+        exc = errors.EdgeDBError._from_code(code, msg)
+        raise exc
 
     ## Private APIs and implementation details
 
